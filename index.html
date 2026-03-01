@@ -3123,36 +3123,27 @@
         padding: 0 0 5rem;
       }
 
-      /* White zone — full-width, skewed border top and bottom */
+      /* White zone — full-width, SVG wave top and bottom */
       .oc-white-zone {
         background: #ffffff;
         position: relative;
         padding: 10rem 2rem 10rem;
         z-index: 1;
+        overflow: hidden;
       }
-      /* Skewed accent strip at top boundary */
-      .oc-white-zone::before {
-        content: '';
+      .oc-wave-top, .oc-wave-bottom {
         position: absolute;
-        top: -14px; left: -2%;
-        width: 104%;
-        height: 28px;
-        background: #4a8ac7;
-        transform: skewY(-1.5deg);
+        left: 0; right: 0;
+        width: 100%;
+        overflow: hidden;
+        line-height: 0;
         pointer-events: none;
         z-index: 2;
       }
-      /* Skewed accent strip at bottom boundary */
-      .oc-white-zone::after {
-        content: '';
-        position: absolute;
-        bottom: -14px; left: -2%;
-        width: 104%;
-        height: 28px;
-        background: #4a8ac7;
-        transform: skewY(-1.5deg);
-        pointer-events: none;
-        z-index: 2;
+      .oc-wave-top { top: 0; height: 80px; }
+      .oc-wave-bottom { bottom: 0; height: 80px; }
+      .oc-wave-top svg, .oc-wave-bottom svg {
+        display: block; width: 100%; height: 100%;
       }
 
       /* Animated dot grid */
@@ -3518,6 +3509,11 @@
 
       <!-- WHITE ZONE: Who We Are -->
       <div class="oc-white-zone">
+        <div class="oc-wave-top">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 80" preserveAspectRatio="none">
+            <path d="M0,0 L1440,0 L1440,30 C1100,75 800,5 540,55 C380,80 180,20 0,45 Z" fill="#1a2028"/>
+          </svg>
+        </div>
         <div class="oc-who reveal-fade">
           <h2>Who We Are</h2>
           <p>
@@ -3530,6 +3526,11 @@
             just getting started or looking to go deeper, we meet you where you
             are and help you move forward with clarity and confidence.
           </p>
+        </div>
+        <div class="oc-wave-bottom">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 80" preserveAspectRatio="none">
+            <path d="M0,80 L1440,80 L1440,50 C1100,5 800,75 540,25 C380,0 180,60 0,35 Z" fill="#0d1117"/>
+          </svg>
         </div>
       </div><!-- /oc-white-zone -->
 
