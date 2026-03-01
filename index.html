@@ -465,10 +465,12 @@
       .use-cases {
         background: var(--light);
         position: relative;
+        clip-path: polygon(0 0, 100% 4%, 100% 96%, 0 100%);
         padding-top: 6rem;
         padding-bottom: 6rem;
-        border-top: 4px solid #4a8ac7;
-        border-bottom: 4px solid #4a8ac7;
+        margin-top: -2rem;
+        margin-bottom: -2rem;
+        filter: drop-shadow(0 0 1.5px #4a8ac7);
       }
 
       .use-cases h2 {
@@ -3121,37 +3123,34 @@
         padding: 0 0 5rem;
       }
 
-      /* White zone — full-width, dotted fade top and bottom */
+      /* White zone — full-width, skewed border top and bottom */
       .oc-white-zone {
         background: #ffffff;
         position: relative;
         padding: 10rem 2rem 10rem;
         z-index: 1;
-        overflow: hidden;
       }
-      /* Dots fade IN from dark above */
+      /* Skewed accent strip at top boundary */
       .oc-white-zone::before {
         content: '';
         position: absolute;
-        top: 0; left: 0; right: 0;
-        height: 90px;
-        background-image: radial-gradient(circle, #1a2028 1.8px, transparent 1.8px);
-        background-size: 12px 12px;
-        -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
-        mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+        top: -14px; left: -2%;
+        width: 104%;
+        height: 28px;
+        background: #4a8ac7;
+        transform: skewY(-1.5deg);
         pointer-events: none;
         z-index: 2;
       }
-      /* Dots fade OUT into dark below */
+      /* Skewed accent strip at bottom boundary */
       .oc-white-zone::after {
         content: '';
         position: absolute;
-        bottom: 0; left: 0; right: 0;
-        height: 90px;
-        background-image: radial-gradient(circle, #0d1117 1.8px, transparent 1.8px);
-        background-size: 12px 12px;
-        -webkit-mask-image: linear-gradient(to top, black 0%, transparent 100%);
-        mask-image: linear-gradient(to top, black 0%, transparent 100%);
+        bottom: -14px; left: -2%;
+        width: 104%;
+        height: 28px;
+        background: #4a8ac7;
+        transform: skewY(-1.5deg);
         pointer-events: none;
         z-index: 2;
       }
