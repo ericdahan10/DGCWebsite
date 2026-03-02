@@ -23,7 +23,7 @@ Your name is ECHO — DGC's AI assistant. You're confident, direct, and genuinel
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ABOUT DGC
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Dahan Group Consulting is a hands-on AI consulting firm. We don't just advise — we build and implement practical AI solutions that help businesses save time, capture more leads, and grow. We specialize in working with small and mid-size businesses, coaches, and agencies who want real results without the overhead of a large consulting firm.
+Dahan Group Consulting is a hands-on AI consulting firm. We don't just advise — we build and implement practical AI solutions that help growing businesses save time, capture more leads, and grow. We specialize in working with small and mid-size businesses, coaches, and agencies who want real results without the overhead of a large consulting firm.
 
 Our edge: We focus on practical implementation over theory. When you work with DGC, we build it for you — from automations to custom chatbots to full AI pipelines — and we make sure it actually works in your business.
 
@@ -223,6 +223,268 @@ function extractShowContact(text) {
   const hasTag = /\[SHOW_CONTACT\]/.test(text);
   const cleanText = text.replace(/\[SHOW_CONTACT\]/g, "").trim();
   return { showContact: hasTag, cleanText };
+}
+
+// ── Text chunking ─────────────────────────────────────────────────────────────
+// Splits a document into ~400-word paragraphs ready for embedding
+function chunkText(text, maxWords = 400) {
+  const paragraphs = text
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 20);
+  const chunks = [];
+  let current = [];
+  let wordCount = 0;
+  for (const para of paragraphs) {
+    const words = para.split(/\s+/).length;
+    if (wordCount + words > maxWords && current.length > 0) {
+      chunks.push(current.join("\n\n"));
+      current = [para];
+      wordCount = words;
+    } else {
+      current.push(para);
+      wordCount += words;
+    }
+  }
+  if (current.length > 0) chunks.push(current.join("\n\n"));
+  return chunks.length > 0 ? chunks : [text.trim()];
+}
+
+// ── OpenAI embeddings ─────────────────────────────────────────────────────────
+// Converts text → 1536-dimension vector using text-embedding-3-small
+async function embedText(text, env) {
+  const res = await fetch("https://api.openai.com/v1/embeddings", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({ input: text, model: "text-embedding-3-small" }),
+  });
+  const data = await res.json();
+  if (!data.data?.[0]?.embedding) {
+    throw new Error("OpenAI embedding failed: " + JSON.stringify(data));
+  }
+  return data.data[0].embedding; // array of 1536 floats
+}
+
+// ── Supabase REST helpers ─────────────────────────────────────────────────────
+// Direct REST API — no npm package needed in Cloudflare Workers
+
+async function supabaseInsert(table, row, env) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: env.SUPABASE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_KEY}`,
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Supabase insert failed (${res.status}): ${err}`);
+  }
+}
+
+async function supabaseRpc(fn, params, env) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: env.SUPABASE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_KEY}`,
+    },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Supabase RPC ${fn} failed (${res.status}): ${err}`);
+  }
+  return res.json();
+}
+
+// ── Supabase count helper ─────────────────────────────────────────────────────
+// Returns the total row count for a table filtered by one key=value pair.
+// Uses the Prefer: count=exact header and reads the Content-Range response.
+async function supabaseCount(table, filterKey, filterValue, env) {
+  const res = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/${table}?select=*&${filterKey}=eq.${encodeURIComponent(filterValue)}`,
+    {
+      headers: {
+        apikey: env.SUPABASE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_KEY}`,
+        Prefer: "count=exact",
+        Range: "0-0",
+      },
+    },
+  );
+  const range = res.headers.get("Content-Range");
+  if (!range) return 0;
+  const match = range.match(/\/(\d+)$/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+// ── HTML stripping ────────────────────────────────────────────────────────────
+// Converts raw HTML into clean plain text suitable for embedding.
+// Removes scripts, styles, nav, and footer — keeps meaningful body text.
+function stripHtml(html) {
+  let text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
+    .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+    .replace(/<header[\s\S]*?<\/header>/gi, "");
+
+  // Block-level tags become newlines so paragraphs are preserved
+  text = text
+    .replace(/<\/?(p|div|h[1-6]|li|tr|br|section|article|main)[^>]*>/gi, "\n")
+    .replace(/<\/?(ul|ol|table)[^>]*>/gi, "\n\n");
+
+  text = text.replace(/<[^>]+>/g, ""); // strip remaining tags
+
+  // Decode common HTML entities
+  text = text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+
+  // Collapse whitespace and remove blank lines
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .join("\n\n")
+    .trim();
+}
+
+// ── CSV line parser ───────────────────────────────────────────────────────────
+// Handles quoted fields and escaped quotes correctly.
+function parseCsvLine(line) {
+  const result = []; let cur = ""; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"' && !inQ) { inQ = true; }
+    else if (c === '"' && inQ) { if (line[i + 1] === '"') { cur += '"'; i++; } else { inQ = false; } }
+    else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ""; }
+    else { cur += c; }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+// ── Core ingest logic (shared by all ingest routes) ───────────────────────────
+// Chunks, embeds, and stores text. Returns the number of chunks stored.
+async function ingestText(text, source, clientId, env) {
+  const chunks = chunkText(text.trim());
+  let stored = 0;
+  for (const chunk of chunks) {
+    if (chunk.trim().length < 20) continue;
+    const embedding = await embedText(chunk, env);
+    await supabaseInsert(
+      "knowledge_chunks",
+      { client_id: clientId, content: chunk, source, embedding },
+      env,
+    );
+    stored++;
+  }
+  return stored;
+}
+
+// ── Visitor Memory helpers ─────────────────────────────────────────────────────
+// All three functions fail silently — memory errors never break the chat.
+
+// Returns the conversation_id for this visitor, creating a new row if needed.
+async function getOrCreateConversation(visitorId, clientId, env) {
+  // Look for an existing conversation for this visitor
+  const res = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/conversations?visitor_id=eq.${encodeURIComponent(visitorId)}&client_id=eq.${clientId}&order=started_at.desc&limit=1`,
+    { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+  );
+  const rows = await res.json();
+  if (Array.isArray(rows) && rows.length > 0) return rows[0].id;
+
+  // None found — create a new conversation row
+  const createRes = await fetch(`${env.SUPABASE_URL}/rest/v1/conversations`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({ visitor_id: visitorId, client_id: clientId }),
+  });
+  const [newConvo] = await createRes.json();
+  return newConvo.id;
+}
+
+// Fetches the last N messages for a conversation, oldest-first (Claude needs chronological order).
+async function fetchConversationHistory(conversationId, limit = 10, env) {
+  const res = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/messages?conversation_id=eq.${conversationId}&order=created_at.asc&limit=${limit}`,
+    { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+  );
+  const rows = await res.json();
+  return Array.isArray(rows) ? rows.map((r) => ({ role: r.role, content: r.content })) : [];
+}
+
+// Saves a user + assistant message pair and updates the conversation timestamp.
+// Runs in ctx.waitUntil — non-blocking, response is already sent by the time this runs.
+async function saveConversationTurn(conversationId, userMsg, assistantMsg, env) {
+  const headers = {
+    apikey: env.SUPABASE_KEY,
+    Authorization: `Bearer ${env.SUPABASE_KEY}`,
+    "Content-Type": "application/json",
+    Prefer: "return=minimal",
+  };
+  await fetch(`${env.SUPABASE_URL}/rest/v1/messages`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ conversation_id: conversationId, role: "user", content: userMsg }),
+  });
+  await fetch(`${env.SUPABASE_URL}/rest/v1/messages`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ conversation_id: conversationId, role: "assistant", content: assistantMsg }),
+  });
+  await fetch(
+    `${env.SUPABASE_URL}/rest/v1/conversations?id=eq.${conversationId}`,
+    {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ last_active_at: new Date().toISOString() }),
+    },
+  );
+}
+
+// ── RAG retrieval ─────────────────────────────────────────────────────────────
+// Finds the most relevant knowledge chunks for the user's message.
+// Fails silently — if RAG errors, the chat continues without extra context.
+async function retrieveContext(query, clientId, env) {
+  try {
+    const queryEmbedding = await embedText(query, env);
+    const chunks = await supabaseRpc(
+      "match_knowledge_chunks",
+      {
+        query_embedding: queryEmbedding,
+        match_count: 4,
+        match_client_id: clientId,
+      },
+      env,
+    );
+    if (!chunks || chunks.length === 0) return null;
+    return chunks.map((c) => c.content).join("\n\n---\n\n");
+  } catch (e) {
+    console.error("RAG retrieval error (non-fatal):", e.message);
+    return null; // chat continues without RAG context
+  }
 }
 
 // ── Conversation helpers ──────────────────────────────────────────────────────
@@ -466,12 +728,446 @@ export default {
     if (!apiKey || apiKey !== env.SITE_API_KEY) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders(request),
+        },
+      });
+    }
+
+    const url = new URL(request.url);
+
+    // ── /ingest route: chunk text → embed → store in Supabase for RAG ────────
+    // Called from the admin panel (or curl) to add knowledge to ECHO's brain.
+    // Body: { text: "...", source: "optional label", client_id: "dgc" }
+    if (url.pathname === "/ingest") {
+      try {
+        const {
+          text,
+          source = "manual",
+          client_id = env.CLIENT_ID,
+        } = await request.json();
+        if (!text || text.trim().length < 10) {
+          return new Response(
+            JSON.stringify({ error: "text field required (min 10 chars)" }),
+            {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders(request),
+              },
+            },
+          );
+        }
+        const stored = await ingestText(text, source, client_id, env);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            chunks_stored: stored,
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
+          },
+        );
+      } catch (e) {
+        console.error("Ingest error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
+        });
+      }
+    }
+
+    // ── /ingest-url: fetch a webpage, strip HTML, and ingest as knowledge ────
+    if (url.pathname === "/ingest-url") {
+      try {
+        const { url: pageUrl, source = "website" } = await request.json();
+        if (!pageUrl) {
+          return new Response(JSON.stringify({ error: "url field required" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+        // Fetch the page with full browser-like headers to pass bot detection
+        const pageRes = await fetch(pageUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Cache-Control": "no-cache",
+          },
+        });
+        if (!pageRes.ok) {
+          const hint = pageRes.status === 403 || pageRes.status === 503
+            ? " The site is blocking automated access (e.g. Cloudflare protection). For your own site, use the Text tab and paste the content directly."
+            : " Ensure the URL is public and accessible.";
+          throw new Error(`Could not fetch page (HTTP ${pageRes.status}).${hint}`);
+        }
+        const html = await pageRes.text();
+        const text = stripHtml(html);
+        if (text.length < 50) {
+          throw new Error("Page returned too little text. The site may block scrapers — try pasting the content directly in the Text tab instead.");
+        }
+        const stored = await ingestText(text, source, env.CLIENT_ID, env);
+        return new Response(
+          JSON.stringify({ success: true, chunks_stored: stored, url: pageUrl }),
+          { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
+        );
+      } catch (e) {
+        console.error("Ingest-url error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /ingest-youtube: extract transcript from a YouTube video and ingest ──
+    if (url.pathname === "/ingest-youtube") {
+      try {
+        const { url: ytUrl } = await request.json();
+        if (!ytUrl) {
+          return new Response(JSON.stringify({ error: "url field required" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+
+        // Extract the video ID from any YouTube URL format
+        const idMatch = ytUrl.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
+        if (!idMatch) throw new Error("Invalid YouTube URL — could not extract video ID.");
+        const videoId = idMatch[1];
+
+        // Attempt 1: auto-generated captions via YouTube's timedtext API
+        let transcript = "";
+        let title = "";
+        try {
+          const captionRes = await fetch(
+            `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
+            { headers: { "User-Agent": "Mozilla/5.0" } },
+          );
+          if (captionRes.ok) {
+            const captionData = await captionRes.json();
+            if (captionData.events && captionData.events.length > 0) {
+              transcript = captionData.events
+                .filter((e) => e.segs)
+                .map((e) => e.segs.map((s) => s.utf8 || "").join(""))
+                .join(" ")
+                .replace(/\s+/g, " ")
+                .trim();
+            }
+          }
+        } catch (_) { /* fall through */ }
+
+        // Attempt 2: fall back to video title + description via oEmbed
+        if (!transcript) {
+          const oembedRes = await fetch(
+            `https://www.youtube.com/oembed?url=${encodeURIComponent(ytUrl)}&format=json`,
+          );
+          if (!oembedRes.ok) throw new Error("Could not retrieve YouTube content. Ensure the video is public.");
+          const meta = await oembedRes.json();
+          title = meta.title || "";
+          transcript = `Video Title: ${meta.title}\nChannel: ${meta.author_name}`;
+        } else {
+          // Also grab title for the response label
+          try {
+            const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(ytUrl)}&format=json`);
+            if (oembedRes.ok) { const meta = await oembedRes.json(); title = meta.title || ""; }
+          } catch (_) { /* non-fatal */ }
+        }
+
+        const source = `youtube-${videoId}`;
+        const stored = await ingestText(transcript, source, env.CLIENT_ID, env);
+        return new Response(
+          JSON.stringify({ success: true, chunks_stored: stored, title }),
+          { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
+        );
+      } catch (e) {
+        console.error("Ingest-youtube error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /ingest-sheet: fetch a public Google Sheet as CSV and ingest ──────────
+    if (url.pathname === "/ingest-sheet") {
+      try {
+        const { url: sheetUrl, source = "google-sheets" } = await request.json();
+        if (!sheetUrl) {
+          return new Response(JSON.stringify({ error: "url field required" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+
+        // Extract the spreadsheet ID and optional gid (tab ID)
+        const idMatch = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        if (!idMatch) throw new Error("Invalid Google Sheets URL. Copy the URL directly from your browser.");
+        const sheetId = idMatch[1];
+        const gidMatch = sheetUrl.match(/[#&]gid=(\d+)/);
+        const gid = gidMatch ? gidMatch[1] : "0";
+
+        // Google Sheets public CSV export endpoint
+        const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+        const csvRes = await fetch(csvUrl);
+        if (!csvRes.ok) {
+          throw new Error("Could not access the sheet. Ensure it is shared as 'Anyone with the link can view'.");
+        }
+
+        const csv = await csvRes.text();
+
+        // Convert CSV rows to "Header: value | Header: value" format for readability
+        const lines = csv.split("\n").map((l) => l.trim()).filter((l) => l);
+        if (lines.length < 2) throw new Error("Sheet appears to be empty or has only headers.");
+
+        const headers = parseCsvLine(lines[0]);
+        const rows = lines.slice(1).map((line) => {
+          const vals = parseCsvLine(line);
+          return headers.map((h, i) => `${h}: ${vals[i] || ""}`.trim()).join(" | ");
+        });
+        const text = rows.join("\n");
+
+        const stored = await ingestText(text, source, env.CLIENT_ID, env);
+        return new Response(
+          JSON.stringify({ success: true, chunks_stored: stored }),
+          { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
+        );
+      } catch (e) {
+        console.error("Ingest-sheet error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /stats: return knowledge base and conversation counts from Supabase ───
+    if (url.pathname === "/stats") {
+      try {
+        const clientId = env.CLIENT_ID;
+
+        // Count knowledge chunks for this client
+        const chunksCount = await supabaseCount("knowledge_chunks", "client_id", clientId, env);
+
+        // Count distinct sources and their chunk counts
+        const sourcesRes = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=source&client_id=eq.${clientId}`,
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
+        );
+        let sources = [];
+        if (sourcesRes.ok) {
+          const rows = await sourcesRes.json();
+          const counts = {};
+          rows.forEach((r) => { counts[r.source] = (counts[r.source] || 0) + 1; });
+          sources = Object.entries(counts)
+            .map(([source, count]) => ({ source, count }))
+            .sort((a, b) => b.count - a.count);
+        }
+
+        // Conversations, leads, tickets — return 0 until analytics logging is built (Step 4)
+        return new Response(
+          JSON.stringify({
+            chunks: chunksCount,
+            conversations: 0,
+            leads: 0,
+            tickets: 0,
+            sources,
+          }),
+          { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
+        );
+      } catch (e) {
+        console.error("Stats error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /delete-source: remove all chunks for a given source label ────────────
+    // Body: { source: "services-faq" }
+    // Deletes all knowledge_chunks rows matching client_id + source.
+    if (url.pathname === "/delete-source") {
+      try {
+        const { source } = await request.json();
+        if (!source) {
+          return new Response(JSON.stringify({ error: "source field required" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+        const res = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?client_id=eq.${env.CLIENT_ID}&source=eq.${encodeURIComponent(source)}`,
+          {
+            method: "DELETE",
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+          },
+        );
+        if (!res.ok) {
+          const err = await res.text();
+          throw new Error(`Supabase delete failed (${res.status}): ${err}`);
+        }
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      } catch (e) {
+        console.error("Delete-source error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /debug-rag: step-by-step RAG diagnostic — protected by SITE_API_KEY ──
+    // Returns: chunk count, embedding dimensions, raw RPC result.
+    // Use to diagnose why retrieveContext returns null.
+    if (url.pathname === "/debug-rag") {
+      const report = { clientId: env.CLIENT_ID, steps: [] };
+      try {
+        const testQuery = (await request.json().catch(() => ({}))).query || "what are the three pillars of DGC";
+        report.query = testQuery;
+
+        // Step 1 — direct REST query: confirm chunks exist for this client_id
+        const chunkRes = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=id,source,content&client_id=eq.${env.CLIENT_ID}&limit=3`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        const chunkData = await chunkRes.json();
+        report.steps.push({
+          step: "1_direct_query",
+          status: chunkRes.status,
+          count: Array.isArray(chunkData) ? chunkData.length : "error",
+          samples: Array.isArray(chunkData)
+            ? chunkData.map((c) => ({ source: c.source, preview: (c.content || "").slice(0, 80) }))
+            : chunkData,
+        });
+
+        // Step 2 — embed the test query
+        let queryEmbedding = null;
+        try {
+          queryEmbedding = await embedText(testQuery, env);
+          report.steps.push({ step: "2_embed", status: "ok", dimensions: queryEmbedding.length });
+        } catch (e) {
+          report.steps.push({ step: "2_embed", error: e.message });
+        }
+
+        // Step 3 — call match_knowledge_chunks RPC with very low threshold and capture raw response
+        if (queryEmbedding) {
+          // Step 3 — call with correct param names (match_client_id, no threshold)
+          const rpcRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/match_knowledge_chunks`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+            body: JSON.stringify({
+              query_embedding: queryEmbedding,
+              match_count: 4,
+              match_client_id: env.CLIENT_ID,
+            }),
+          });
+          const rpcText = await rpcRes.text();
+          let rpcData;
+          try { rpcData = JSON.parse(rpcText); } catch { rpcData = rpcText; }
+          report.steps.push({
+            step: "3_rpc_match_client_id",
+            status: rpcRes.status,
+            count: Array.isArray(rpcData) ? rpcData.length : "n/a",
+            previews: Array.isArray(rpcData)
+              ? rpcData.map((c) => ({ source: c.source, preview: (c.content || "").slice(0, 80) }))
+              : rpcData,
+          });
+        }
+      } catch (e) {
+        report.fatal_error = e.message;
+      }
+      return new Response(JSON.stringify(report, null, 2), {
+        headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+      });
+    }
+
+    // ── /debug-memory: step-by-step visitor memory diagnostic ────────────────
+    if (url.pathname === "/debug-memory") {
+      const report = { clientId: env.CLIENT_ID, steps: [] };
+      try {
+        const visitorId = "debug-visitor-test-001";
+
+        // Step 1 — try to create a conversation row
+        const createRes = await fetch(`${env.SUPABASE_URL}/rest/v1/conversations`, {
+          method: "POST",
+          headers: {
+            apikey: env.SUPABASE_KEY,
+            Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({ visitor_id: visitorId, client_id: env.CLIENT_ID }),
+        });
+        const createText = await createRes.text();
+        let createData;
+        try { createData = JSON.parse(createText); } catch { createData = createText; }
+        report.steps.push({ step: "1_create_conversation", status: createRes.status, result: createData });
+
+        const conversationId = Array.isArray(createData) ? createData[0]?.id : createData?.id;
+
+        if (conversationId) {
+          // Step 2 — insert a test message
+          const msgRes = await fetch(`${env.SUPABASE_URL}/rest/v1/messages`, {
+            method: "POST",
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify({ conversation_id: conversationId, role: "user", content: "debug test message" }),
+          });
+          report.steps.push({ step: "2_insert_message", status: msgRes.status });
+
+          // Step 3 — fetch messages back
+          const fetchRes = await fetch(
+            `${env.SUPABASE_URL}/rest/v1/messages?conversation_id=eq.${conversationId}&order=created_at.asc`,
+            { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          );
+          const fetchData = await fetchRes.json();
+          report.steps.push({ step: "3_fetch_messages", status: fetchRes.status, count: Array.isArray(fetchData) ? fetchData.length : "error", result: fetchData });
+
+          // Clean up test data
+          await fetch(`${env.SUPABASE_URL}/rest/v1/conversations?id=eq.${conversationId}`, {
+            method: "DELETE",
+            headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}`, Prefer: "return=minimal" },
+          });
+        }
+      } catch (e) {
+        report.fatal_error = e.message;
+      }
+      return new Response(JSON.stringify(report, null, 2), {
         headers: { "Content-Type": "application/json", ...corsHeaders(request) },
       });
     }
 
     // ── /escalation endpoint: proxy escalation form direct to Apps Script ──
-    const url = new URL(request.url);
     if (url.pathname === "/escalation") {
       // [FIX] Use manual redirect follow for Apps Script
       try {
@@ -538,6 +1234,43 @@ export default {
       ]);
       const body = await request.json();
       const messages = body.messages || [];
+      const visitorId = body.visitor_id || null;
+
+      // ── Visitor Memory: load prior conversation history ───────────────────
+      // Fetches previous sessions from Supabase so ECHO remembers returning visitors.
+      // Fails silently — if Supabase is unreachable, chat continues without history.
+      let conversationId = null;
+      let priorHistory = [];
+      if (visitorId && env.SUPABASE_URL && env.SUPABASE_KEY) {
+        try {
+          conversationId = await getOrCreateConversation(visitorId, env.CLIENT_ID, env);
+          // Fetch last 10 messages from previous sessions (not the current session — frontend sends those)
+          const history = await fetchConversationHistory(conversationId, 10, env);
+          // Only include history that predates the current session messages to avoid duplication
+          // Current session is whatever the frontend sent; prior history is everything before
+          if (history.length > 0) priorHistory = history;
+        } catch (e) {
+          console.error("Visitor memory fetch error (non-fatal):", e.message);
+        }
+      }
+
+      // ── RAG: inject relevant knowledge before calling Claude ──────────────
+      // Finds chunks in Supabase closest to the user's latest message.
+      // If no chunks found (or RAG errors), chat continues with base prompt.
+      let systemPrompt = DGC_SYSTEM_PROMPT;
+      const lastUserMsg = [...messages]
+        .reverse()
+        .find((m) => m.role === "user");
+      if (lastUserMsg && env.OPENAI_API_KEY && env.SUPABASE_URL) {
+        const context = await retrieveContext(lastUserMsg.content, env.CLIENT_ID, env);
+        if (context) {
+          systemPrompt += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nKNOWLEDGE BASE — use this to answer accurately\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${context}`;
+        }
+      }
+
+      // Merge prior history (past sessions) with current session messages.
+      // Claude sees the full context: what was said before + what's being said now.
+      const allMessages = [...priorHistory, ...messages];
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -549,8 +1282,8 @@ export default {
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 400,
-          system: DGC_SYSTEM_PROMPT,
-          messages,
+          system: systemPrompt,
+          messages: allMessages,
         }),
       });
 
@@ -610,7 +1343,6 @@ export default {
           category: ticketData.category || "escalation",
           urgency: ticketData.urgency || "medium",
         };
-
       }
 
       // ── Step 5: Handle lead capture (skip if support ticket was raised) ─────
@@ -643,6 +1375,17 @@ export default {
             ctx.waitUntil(sendToLeadWorker(fallbackLead, chatContext, env));
           }
         }
+      }
+
+      // ── Visitor Memory: save this turn in the background ─────────────────
+      // Uses ctx.waitUntil so the save happens after the response is sent —
+      // the visitor never waits for the Supabase write.
+      if (conversationId && lastUserMsg && rawText) {
+        ctx.waitUntil(
+          saveConversationTurn(conversationId, lastUserMsg.content, rawText, env).catch((e) =>
+            console.error("Visitor memory save error (non-fatal):", e.message),
+          ),
+        );
       }
 
       // ── [FIX] Return response with routing info ───────────────────────────

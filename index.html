@@ -5717,6 +5717,19 @@
       let contactCollected = false;
       let escalationShown = false;
 
+      // ── Visitor identity — persists across page refreshes and sessions ────────
+      // Generates a UUID on first visit, stored in localStorage forever.
+      // Sent with every message so the Worker can fetch + save conversation history.
+      function getOrCreateVisitorId() {
+        let id = localStorage.getItem("echo_visitor_id");
+        if (!id) {
+          id = crypto.randomUUID();
+          localStorage.setItem("echo_visitor_id", id);
+        }
+        return id;
+      }
+      const visitorId = getOrCreateVisitorId();
+
       // ── Render helpers ──
       function simpleMarkdown(text) {
         return text
@@ -6111,7 +6124,7 @@
               "Content-Type": "application/json",
               "X-API-Key": API_KEY,
             },
-            body: JSON.stringify({ messages: chatHistory.slice(-10) }),
+            body: JSON.stringify({ messages: chatHistory.slice(-10), visitor_id: visitorId }),
           });
 
           const data = await res.json();
