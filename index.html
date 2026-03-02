@@ -6770,7 +6770,40 @@
           startTimer();
         };
 
-        document.addEventListener("DOMContentLoaded", init);
+        // Touch swipe support for mobile
+        document.addEventListener("DOMContentLoaded", function () {
+          init();
+          var wrapper = document.querySelector(".showcase-wrapper");
+          if (!wrapper) return;
+          var touchStartX = 0;
+          var touchStartY = 0;
+          var swipeLocked = false;
+
+          wrapper.addEventListener("touchstart", function (e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            swipeLocked = false;
+          }, { passive: true });
+
+          wrapper.addEventListener("touchmove", function (e) {
+            if (swipeLocked) return;
+            var dx = e.touches[0].clientX - touchStartX;
+            var dy = e.touches[0].clientY - touchStartY;
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
+              swipeLocked = true;
+              e.preventDefault();
+            }
+          }, { passive: false });
+
+          wrapper.addEventListener("touchend", function (e) {
+            var dx = e.changedTouches[0].clientX - touchStartX;
+            if (Math.abs(dx) < 50) return;
+            var newIdx = dx < 0
+              ? (currentIdx + 1) % cards.length
+              : (currentIdx - 1 + cards.length) % cards.length;
+            window.goToCard(newIdx);
+          }, { passive: true });
+        });
       })();
       // ===== End Showcase Carousel =====
 
