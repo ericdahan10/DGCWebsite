@@ -1380,7 +1380,7 @@ export default {
 
     // ── /escalation endpoint: proxy escalation form direct to Apps Script ──
     if (url.pathname === "/escalation") {
-      // [FIX] Use manual redirect follow for Apps Script
+      // Tickets are now stored in Supabase (Google Sheets logging removed)
       try {
         assertRequiredEnv(env, [
           "GOOGLE_APPS_SCRIPT_URL",
@@ -1390,14 +1390,11 @@ export default {
           "ANTHROPIC_API_KEY",
         ]);
         const payload = await request.json();
-        const res = await postToAppsScript(payload, env);
-        const text = await res.text();
-        console.log("Escalation proxy response:", res.status, text);
 
-        // Save ticket to Supabase in background — non-blocking
-        ctx.waitUntil(saveTicketToSupabase(payload, env));
+        // Save ticket to Supabase — primary storage
+        await saveTicketToSupabase(payload, env);
 
-        // Send confirmation email to client
+        // Send confirmation email to client via Apps Script (Gmail)
         if (payload.clientEmail) {
           const html = buildConfirmationEmail(
             payload.clientName,
@@ -1416,7 +1413,7 @@ export default {
           );
         }
 
-        return new Response(text, {
+        return new Response(JSON.stringify({ success: true }), {
           status: 200,
           headers: {
             "Content-Type": "application/json",
