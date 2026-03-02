@@ -1268,6 +1268,13 @@ export default {
         }
       }
 
+      // If prior history exists, explicitly tell ECHO it remembers this visitor.
+      // Without this, Claude's base training causes it to deny having memory even
+      // when prior conversation is right there in the context.
+      if (priorHistory.length > 0) {
+        systemPrompt += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nRETURNING VISITOR\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nThis visitor has spoken with you before. The conversation history above is real — you have access to it and should use it. Do NOT say you have no memory or that each chat starts fresh. If they ask whether you remember them, confirm that you do and reference what you know about them naturally and briefly.`;
+      }
+
       // Merge prior history (past sessions) with current session messages.
       // Claude sees the full context: what was said before + what's being said now.
       const allMessages = [...priorHistory, ...messages];
