@@ -6879,5 +6879,85 @@
       })();
 
     </script>
+
+  <!-- Spinning DGC orb favicon — canvas animation, matches TRACE + VAULT -->
+  <script>
+    (function () {
+      const S = 32, cx = 16, cy = 16;
+      const canvas = document.createElement('canvas');
+      canvas.width = S; canvas.height = S;
+      const c = canvas.getContext('2d');
+
+      const link = document.createElement('link');
+      link.rel = 'icon'; link.type = 'image/png';
+      document.head.appendChild(link);
+
+      // Match CSS animation speeds: spin-rev=12s, spin=8s at ~60fps
+      const REV_SLOW = (Math.PI * 2) / (12 * 60);
+      const REV_FAST = (Math.PI * 2) / (8 * 60);
+      let t = 0;
+
+      function frame() {
+        c.clearRect(0, 0, S, S);
+
+        // Dark rounded background
+        c.fillStyle = '#0d1117';
+        c.beginPath();
+        if (c.roundRect) { c.roundRect(0, 0, S, S, 6); } else { c.rect(0, 0, S, S); }
+        c.fill();
+
+        // Outer static ring
+        c.strokeStyle = 'rgba(45,90,143,0.75)';
+        c.lineWidth = 1;
+        c.beginPath();
+        c.ellipse(cx, cy, 13.5, 12.5, 0, 0, Math.PI * 2);
+        c.stroke();
+
+        // Inner orbital ring — spins reverse (slow)
+        c.save();
+        c.translate(cx, cy);
+        c.rotate(-t * REV_SLOW);
+        c.strokeStyle = '#4a8ac7';
+        c.lineWidth = 1.2;
+        c.beginPath();
+        c.ellipse(0, 0, 9, 6, 0, 0, Math.PI * 2);
+        c.stroke();
+        c.restore();
+
+        // Orbiting dot — spins forward (fast)
+        c.save();
+        c.translate(cx, cy);
+        c.rotate(t * REV_FAST);
+        c.fillStyle = '#7db8e8';
+        c.globalAlpha = 0.85;
+        c.beginPath();
+        c.arc(10.5, -6.5, 1.8, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+
+        // Center gradient dot
+        c.globalAlpha = 1;
+        const g = c.createRadialGradient(cx, cy, 0, cx, cy, 3.5);
+        g.addColorStop(0, '#7db8e8');
+        g.addColorStop(1, '#2d5a8f');
+        c.fillStyle = g;
+        c.beginPath();
+        c.arc(cx, cy, 3, 0, Math.PI * 2);
+        c.fill();
+
+        // White highlight
+        c.fillStyle = 'rgba(255,255,255,0.9)';
+        c.beginPath();
+        c.arc(cx, cy, 1.2, 0, Math.PI * 2);
+        c.fill();
+
+        link.href = canvas.toDataURL('image/png');
+        t++;
+        requestAnimationFrame(frame);
+      }
+
+      frame();
+    })();
+  </script>
   </body>
 </html>
