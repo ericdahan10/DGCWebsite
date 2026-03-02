@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VAULT · DGC Knowledge Portal</title>
+
+  <!-- Favicon — DGC orb -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'><rect width='44' height='44' rx='10' fill='%230e1420'/><ellipse cx='22' cy='22' rx='19' ry='18' fill='none' stroke='%232d5a8f' stroke-width='1.5'/><ellipse cx='22' cy='22' rx='13' ry='9' fill='none' stroke='%234a8ac7' stroke-width='1.5'/><circle cx='22' cy='22' r='3.5' fill='%234a8ac7'/><circle cx='33' cy='14' r='2' fill='%237db8e8' opacity='0.8'/></svg>" />
+
+  <!-- Open Graph — link previews for Slack, iMessage, LinkedIn, etc. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="VAULT · DGC Knowledge Portal" />
+  <meta property="og:description" content="Manage your AI chatbot's knowledge base. Ingest content from any source — chunked, embedded, and retrieved automatically during conversations." />
+  <meta property="og:url" content="https://dahangroup.io/vault.html" />
+  <meta property="og:image" content="https://dahangroup.io/og-image.png" />
+  <meta property="og:site_name" content="DGC" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="VAULT · DGC Knowledge Portal" />
+  <meta name="twitter:description" content="Manage your AI chatbot's knowledge base. Ingest content from any source — chunked, embedded, and retrieved automatically." />
+  <meta name="twitter:image" content="https://dahangroup.io/og-image.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@400;500&family=Questrial&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @keyframes spin     { from { transform: rotate(0deg); }   to { transform: rotate(360deg); } }
+    @keyframes spin-rev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+
+    /* ── Shared base ────────────────────────────────────────────────────────── */
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: #0e0e0e;
+      color: #e8edf4;
+      min-height: 100vh;
+    }
+
+    /* Subtle grid overlay — same as TRACE */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(45,90,143,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(45,90,143,0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── DGC Top Nav — identical to TRACE ──────────────────────────────────── */
+    .top-nav {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 64px;
+      background: #1a1a1a;
+      border-bottom: 2px solid #2d5a8f;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px;
+      z-index: 200;
+    }
+
+    .nav-links {
+      display: flex; gap: 6px; align-items: center;
+    }
+
+    .nav-link {
+      padding: 7px 14px; border-radius: 7px;
+      font-size: 12px; font-weight: 600;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      color: #888; border: 1px solid transparent;
+      cursor: pointer; transition: all 0.2s; background: none;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .nav-link:hover { color: #ccc; background: rgba(255,255,255,0.04); }
+
+    .nav-link.active {
+      color: #4a8ac7;
+      background: rgba(74,138,199,0.1);
+      border-color: rgba(74,138,199,0.25);
+    }
+
+    .nav-logout {
+      padding: 7px 14px; border-radius: 7px;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: #555; border: 1px solid #222;
+      cursor: pointer; transition: all 0.2s; background: none;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .nav-logout:hover { color: #ef4444; border-color: rgba(239,68,68,0.3); }
+
+    /* ── LOGIN SCREEN ──────────────────────────────────────────────────────── */
+    #login-screen {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100; padding: 24px;
+    }
+
+    #login-screen.hidden { display: none; }
+
+    .login-card {
+      width: 100%; max-width: 420px;
+      background: linear-gradient(150deg, #1e2533 0%, #181818 60%);
+      border: 1px solid #2a3d5c;
+      border-radius: 16px;
+      padding: 48px 40px 40px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(74,138,199,0.1);
+      position: relative; z-index: 1;
+    }
+
+    .login-hero {
+      text-align: center; margin-bottom: 36px;
+    }
+
+    .orb-wrap {
+      display: flex; justify-content: center;
+      margin-bottom: 16px; position: relative;
+    }
+
+    .orb-glow {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 110px; height: 110px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(74,138,199,0.2) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .vault-title {
+      font-size: 48px; font-weight: 800;
+      letter-spacing: 0.2em; line-height: 1;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, #ffffff 0%, #a8d4f5 40%, #4a8ac7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 28px rgba(74,138,199,0.4));
+      padding-right: 0.2em;
+    }
+
+    .vault-tag {
+      font-size: 9px; color: #4a8ac7;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      font-weight: 600;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+
+    .vault-tag::before, .vault-tag::after {
+      content: ''; display: block; width: 28px; height: 1px;
+      background: linear-gradient(to right, transparent, rgba(74,138,199,0.5));
+    }
+
+    .vault-tag::after { background: linear-gradient(to left, transparent, rgba(74,138,199,0.5)); }
+
+    .login-label {
+      display: block; font-size: 11px; font-weight: 600;
+      color: #888; letter-spacing: 0.08em; text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    .login-input {
+      width: 100%; background: #111;
+      border: 1px solid #2a2a2a; border-radius: 8px;
+      padding: 12px 14px; font-size: 14px; color: #fff;
+      font-family: 'Space Grotesk', sans-serif;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+      margin-bottom: 20px;
+    }
+
+    .login-input:focus { border-color: #2d5a8f; box-shadow: 0 0 0 3px rgba(45,90,143,0.2); }
+    .login-input::placeholder { color: #444; }
+
+    .btn-login {
+      width: 100%;
+      background: linear-gradient(135deg, #2d5a8f, #3a7bc8);
+      border: none; border-radius: 8px;
+      padding: 13px; font-size: 14px; font-weight: 700;
+      color: #fff; font-family: 'Space Grotesk', sans-serif;
+      letter-spacing: 0.06em; cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s; margin-top: 4px;
+    }
+
+    .btn-login:hover { opacity: 0.9; }
+    .btn-login:active { transform: scale(0.99); }
+    .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .login-error {
+      display: none;
+      background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 13px; color: #fca5a5;
+      margin-bottom: 16px; text-align: center;
+    }
+
+    .login-error.visible { display: block; }
+
+    .powered-by {
+      text-align: center; margin-top: 28px;
+      font-size: 10px; color: #333;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+
+    /* ── APP ────────────────────────────────────────────────────────────────── */
+    #app { display: none; }
+    #app.visible { display: block; }
+
+    .app-body {
+      padding-top: 64px; /* height of top nav */
+      min-height: 100vh;
+      background: #141414;
+    }
+
+    .app-content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 36px 32px;
+    }
+
+    /* ── Pages ──────────────────────────────────────────────────────────────── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── Page header ──────────────────────────────────────────────────────── */
+    .page-eyebrow {
+      font-size: 10px; font-weight: 600; color: #4a8ac7;
+      letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px;
+    }
+
+    .page-title {
+      font-size: 26px; font-weight: 700;
+      letter-spacing: -0.02em; color: #fff; margin-bottom: 6px;
+    }
+
+    .page-desc {
+      font-size: 13px; color: #666; line-height: 1.6;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .page-header { margin-bottom: 28px; }
+
+    /* ── Cards — matching TRACE card style ────────────────────────────────── */
+    .card {
+      background: linear-gradient(150deg, #262e3d 0%, #1e1e1e 60%);
+      border: 1px solid #2a3d5c;
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 12px; font-weight: 700;
+      color: #4a8ac7; letter-spacing: 0.1em; text-transform: uppercase;
+      margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── Tab bar ──────────────────────────────────────────────────────────── */
+    .tab-bar {
+      display: flex; gap: 4px; margin-bottom: 20px;
+      background: #1a1a1a; border: 1px solid #2a3d5c;
+      border-radius: 10px; padding: 4px;
+    }
+
+    .tab-btn {
+      flex: 1; padding: 8px 8px;
+      background: transparent; border: none;
+      border-radius: 7px; color: #666;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+      cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+
+    .tab-btn:hover { color: #aaa; background: rgba(255,255,255,0.04); }
+
+    .tab-btn.active {
+      background: linear-gradient(150deg, #262e3d 0%, #1e1e1e 60%);
+      color: #4a8ac7; border: 1px solid #2a3d5c;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Form elements ──────────────────────────────────────────────────────── */
+    .form-group { margin-bottom: 16px; }
+
+    .form-label {
+      display: block; font-size: 11px; font-weight: 600;
+      color: #888; text-transform: uppercase;
+      letter-spacing: 0.08em; margin-bottom: 7px;
+    }
+
+    .form-input, .form-textarea {
+      width: 100%; background: #111;
+      border: 1px solid #2a2a2a; border-radius: 8px;
+      padding: 11px 14px; font-size: 13px; color: #fff;
+      font-family: 'Inter', sans-serif; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-input:focus, .form-textarea:focus {
+      border-color: #2d5a8f; box-shadow: 0 0 0 3px rgba(45,90,143,0.15);
+    }
+
+    .form-input::placeholder, .form-textarea::placeholder { color: #444; }
+    .form-textarea { resize: vertical; min-height: 140px; line-height: 1.6; }
+
+    .form-row {
+      display: grid; grid-template-columns: 1fr 180px; gap: 12px;
+    }
+
+    .form-hint { font-size: 11px; color: #555; margin-top: 5px; font-family: 'Inter', sans-serif; }
+
+    /* ── Buttons ────────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 11px 20px; border-radius: 8px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+      cursor: pointer; transition: all 0.15s; border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #2d5a8f, #3a7bc8);
+      color: #fff;
+    }
+
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-ghost {
+      background: transparent; border: 1px solid #2a3d5c; color: #888;
+    }
+
+    .btn-ghost:hover { border-color: #4a8ac7; color: #4a8ac7; }
+
+    /* ── File drop zone ─────────────────────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed #2a3d5c; border-radius: 10px;
+      padding: 32px 24px; text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative; background: #111;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: #4a8ac7; background: rgba(74,138,199,0.06);
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+
+    .drop-icon { font-size: 28px; margin-bottom: 8px; }
+    .drop-text { font-size: 13px; color: #555; font-family: 'Inter', sans-serif; }
+    .drop-text strong { color: #4a8ac7; }
+    .drop-name { font-size: 12px; color: #4ade80; margin-top: 8px; }
+
+    /* ── Ingest result ──────────────────────────────────────────────────────── */
+    .ingest-result {
+      margin-top: 14px; padding: 11px 16px;
+      border-radius: 8px; font-size: 13px; display: none;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .ingest-result.success {
+      background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.2);
+      color: #4ade80; display: block;
+    }
+
+    .ingest-result.error {
+      background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+      color: #fca5a5; display: block;
+    }
+
+    /* ── Analytics stats ────────────────────────────────────────────────────── */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 16px; margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: linear-gradient(150deg, #262e3d 0%, #1e1e1e 60%);
+      border: 1px solid #2a3d5c; border-radius: 12px;
+      padding: 20px 22px;
+    }
+
+    .stat-label {
+      font-size: 10px; font-weight: 700; color: #555;
+      text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px;
+    }
+
+    .stat-value {
+      font-size: 34px; font-weight: 800;
+      letter-spacing: -0.02em; color: #fff; line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-blue  .stat-value { color: #4a8ac7; }
+    .stat-green .stat-value { color: #4ade80; }
+
+    .stat-sub { font-size: 11px; color: #444; font-family: 'Inter', sans-serif; }
+
+    /* ── Coming soon ────────────────────────────────────────────────────────── */
+    .coming-soon {
+      background: linear-gradient(150deg, #1e2533 0%, #181818 60%);
+      border: 1px dashed #2a3d5c; border-radius: 12px;
+      padding: 36px 24px; text-align: center;
+    }
+
+    .coming-soon-icon { font-size: 28px; margin-bottom: 10px; }
+    .coming-soon-title { font-size: 14px; font-weight: 700; color: #ccc; margin-bottom: 6px; }
+    .coming-soon-desc { font-size: 12px; color: #555; line-height: 1.6; font-family: 'Inter', sans-serif; }
+
+    .badge {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+
+    .badge-soon { background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+
+    /* ── Sources list ──────────────────────────────────────────────────────── */
+    .source-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid #1e2533;
+      font-size: 13px; font-family: 'Inter', sans-serif;
+    }
+
+    .source-row:last-child { border-bottom: none; }
+    .source-name { color: #ccc; }
+    .source-count { color: #4a8ac7; font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
+
+    /* ── Spinner ────────────────────────────────────────────────────────────── */
+    .spinner {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.2); border-top-color: #fff;
+      animation: spin 0.7s linear infinite;
+    }
+
+    /* ── Toast ──────────────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      padding: 12px 18px; border-radius: 10px;
+      font-size: 13px; font-weight: 600;
+      transform: translateY(80px); opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+      z-index: 999; pointer-events: none;
+    }
+
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    #toast.success {
+      background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3); color: #4ade80;
+    }
+
+    #toast.error {
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5;
+    }
+
+    /* ── Source management cards ────────────────────────────────────────────── */
+    .sources-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    .source-card {
+      background: linear-gradient(150deg, #262e3d 0%, #1e1e1e 60%);
+      border: 1px solid #2a3d5c; border-radius: 12px; padding: 18px 20px;
+      transition: border-color 0.2s;
+    }
+
+    .source-card:hover { border-color: #3a6a9f; }
+
+    .source-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+    .source-card-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+
+    .source-card-icon { font-size: 20px; flex-shrink: 0; }
+
+    .source-card-name {
+      font-size: 14px; font-weight: 600; color: #e0e8f4;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .source-card-meta { font-size: 11px; color: #4a8ac7; font-weight: 700; margin-top: 3px; }
+
+    .btn-delete {
+      padding: 6px 13px; border-radius: 6px; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.04em; color: #ef4444; border: 1px solid rgba(239,68,68,0.25);
+      background: rgba(239,68,68,0.06); cursor: pointer; transition: all 0.15s;
+      font-family: 'Space Grotesk', sans-serif; white-space: nowrap;
+    }
+
+    .btn-delete:hover { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.5); }
+    .btn-delete:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .source-confirm {
+      margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(239,68,68,0.15);
+      display: none; align-items: center; justify-content: space-between; gap: 12px;
+    }
+
+    .source-confirm.visible { display: flex; }
+
+    .source-confirm-msg { font-size: 12px; color: #f59e0b; font-family: 'Inter', sans-serif; line-height: 1.5; }
+
+    .source-confirm-btns { display: flex; gap: 8px; flex-shrink: 0; }
+
+    .btn-cancel {
+      padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      color: #666; border: 1px solid #2a3d5c; background: transparent; cursor: pointer;
+      transition: all 0.15s; font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .btn-cancel:hover { color: #ccc; border-color: #444; }
+
+    .btn-confirm-delete {
+      padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 700;
+      color: #fff; background: #ef4444; border: none; cursor: pointer;
+      transition: opacity 0.15s; font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .btn-confirm-delete:hover { opacity: 0.85; }
+    .btn-confirm-delete:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .sources-empty {
+      text-align: center; padding: 56px 24px;
+      background: linear-gradient(150deg, #1e2533 0%, #181818 60%);
+      border: 1px dashed #2a3d5c; border-radius: 12px;
+    }
+
+    .sources-empty-icon { font-size: 36px; margin-bottom: 12px; }
+    .sources-empty-title { font-size: 15px; font-weight: 700; color: #888; margin-bottom: 6px; }
+    .sources-empty-desc { font-size: 13px; color: #444; font-family: 'Inter', sans-serif; line-height: 1.6; }
+
+    /* ── Tickets page ───────────────────────────────────────────────────────── */
+    .ticket-filter-bar {
+      display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .ticket-filter-btn {
+      padding: 6px 14px; border-radius: 20px; border: 1px solid #2a3d5c;
+      background: transparent; color: #888; font-size: 12px; font-family: 'Inter', sans-serif;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .ticket-filter-btn:hover { border-color: #4a8ac7; color: #ccc; }
+    .ticket-filter-btn.active { background: #4a8ac7; border-color: #4a8ac7; color: #fff; }
+
+    .ticket-card {
+      background: linear-gradient(150deg, #1e2636, #1c1c1c);
+      border: 1px solid #2a3d5c;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      position: relative;
+      border-left-width: 4px;
+      transition: border-color 0.15s;
+    }
+    .ticket-card.urgency-high  { border-left-color: #ef4444; }
+    .ticket-card.urgency-medium { border-left-color: #f59e0b; }
+    .ticket-card.urgency-low   { border-left-color: #4ade80; }
+    .ticket-card:hover { border-top-color: #3a6a9f; border-right-color: #3a6a9f; border-bottom-color: #3a6a9f; }
+
+    .ticket-main { flex: 1; min-width: 0; }
+    .ticket-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+    .ticket-id { font-family: 'Space Grotesk', sans-serif; font-size: 11px; color: #4a8ac7; font-weight: 700; letter-spacing: 0.5px; }
+    .ticket-category { font-size: 10px; background: #1a2a40; color: #7aaddb; border: 1px solid #2a4a6a; border-radius: 4px; padding: 2px 7px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
+    .ticket-urgency-badge { font-size: 10px; border-radius: 4px; padding: 2px 7px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .ticket-urgency-badge.high   { background: #3b1010; color: #ef4444; border: 1px solid #5c1515; }
+    .ticket-urgency-badge.medium { background: #3b2c10; color: #f59e0b; border: 1px solid #5c4415; }
+    .ticket-urgency-badge.low    { background: #0e2a1a; color: #4ade80; border: 1px solid #1a4a2a; }
+
+    .ticket-issue { font-size: 14px; color: #ddd; font-family: 'Inter', sans-serif; line-height: 1.5; margin-bottom: 10px; }
+    .ticket-visitor { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+    .ticket-visitor-name { font-size: 12px; color: #aaa; font-family: 'Inter', sans-serif; }
+    .ticket-visitor-name strong { color: #ccc; }
+    .ticket-visitor-email a { font-size: 12px; color: #4a8ac7; font-family: 'Inter', sans-serif; text-decoration: none; }
+    .ticket-visitor-email a:hover { text-decoration: underline; }
+    .ticket-date { font-size: 11px; color: #444; font-family: 'Inter', sans-serif; }
+    .ticket-crm-pushed { font-size: 10px; color: #4ade80; font-weight: 700; padding-left: 4px; }
+
+    .ticket-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex-shrink: 0; }
+    .ticket-status-select {
+      background: #1a2535; color: #ccc; border: 1px solid #2a3d5c; border-radius: 6px;
+      padding: 5px 10px; font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer;
+      outline: none;
+    }
+    .ticket-status-select:focus { border-color: #4a8ac7; }
+
+    .ticket-action-btns { display: flex; gap: 8px; }
+    .ticket-btn {
+      padding: 6px 12px; border-radius: 6px; font-size: 11px; font-family: 'Inter', sans-serif;
+      font-weight: 600; cursor: pointer; border: 1px solid; transition: all 0.15s; white-space: nowrap;
+    }
+    .ticket-btn-email { background: transparent; border-color: #2a3d5c; color: #aaa; }
+    .ticket-btn-email:hover { background: #1a2a40; border-color: #4a8ac7; color: #7aaddb; }
+    .ticket-btn-crm { background: transparent; border-color: #2a3d5c; color: #aaa; }
+    .ticket-btn-crm:hover { background: #1a3a1a; border-color: #4ade80; color: #4ade80; }
+    .ticket-btn-crm.pushed { border-color: #4ade80; color: #4ade80; opacity: 0.6; cursor: default; }
+
+    .tickets-empty { text-align: center; padding: 60px 20px; }
+    .tickets-empty-icon { font-size: 40px; margin-bottom: 12px; }
+    .tickets-empty-title { font-size: 16px; font-weight: 700; color: #888; margin-bottom: 8px; font-family: 'Space Grotesk', sans-serif; }
+    .tickets-empty-desc { font-size: 13px; color: #444; font-family: 'Inter', sans-serif; line-height: 1.6; max-width: 420px; margin: 0 auto; }
+
+    /* ── Responsive ─────────────────────────────────────────────────────────── */
+    @media (max-width: 700px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid { grid-template-columns: 1fr; }
+      .sources-grid { grid-template-columns: 1fr; }
+      .form-row { grid-template-columns: 1fr; }
+      .app-content { padding: 24px 16px; }
+      .tab-btn { font-size: 10px; padding: 7px 4px; }
+      .source-confirm { flex-direction: column; align-items: flex-start; }
+      .ticket-card { flex-direction: column; }
+      .ticket-actions { flex-direction: row; align-items: center; width: 100%; justify-content: space-between; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Toast ─────────────────────────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<!-- ── LOGIN SCREEN ──────────────────────────────────────────────────────────── -->
+<div id="login-screen">
+
+  <!-- DGC Top Nav (login) -->
+  <nav class="top-nav">
+    <svg width="195" height="38" viewBox="0 0 260 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="24" cy="25" rx="19" ry="18" fill="none" stroke="#2d5a8f" stroke-width="2"/>
+      <g style="transform-origin:24px 25px; animation:spin-rev 12s linear infinite">
+        <ellipse cx="24" cy="25" rx="13" ry="9.5" fill="none" stroke="#2d5a8f" stroke-width="1.5"/>
+      </g>
+      <circle cx="24" cy="25" r="3" fill="#4a8ac7"/>
+      <g style="transform-origin:24px 25px; animation:spin 8s linear infinite">
+        <circle cx="37" cy="16" r="2" fill="#4a8ac7" opacity="0.7"/>
+      </g>
+      <line x1="52" y1="10" x2="52" y2="40" stroke="rgba(255,255,255,0.1)" stroke-width="0.7"/>
+      <text x="62" y="27" font-family="'Cormorant Garamond', serif" font-weight="400" font-size="20" fill="#ffffff" letter-spacing="2.5">DAHAN GROUP</text>
+      <text x="109" y="40" font-family="'Questrial', sans-serif" font-weight="400" font-size="6.5" fill="rgba(255,255,255,0.55)" letter-spacing="4">CONSULTING</text>
+    </svg>
+  </nav>
+
+  <!-- Login Card -->
+  <div class="login-card">
+
+    <div class="login-hero">
+      <!-- Spinning orb — identical to TRACE -->
+      <div class="orb-wrap">
+        <div class="orb-glow"></div>
+        <svg width="72" height="72" viewBox="0 0 44 44" fill="none">
+          <ellipse cx="22" cy="22" rx="20" ry="19" fill="none" stroke="rgba(74,138,199,0.2)" stroke-width="0.8"/>
+          <g style="transform-origin:22px 22px; animation:spin-rev 12s linear infinite">
+            <ellipse cx="22" cy="22" rx="13" ry="8.5" fill="none" stroke="url(#og)" stroke-width="1.8"/>
+          </g>
+          <circle cx="22" cy="22" r="4" fill="url(#cg)"/>
+          <circle cx="22" cy="22" r="1.8" fill="#fff" opacity="0.9"/>
+          <g style="transform-origin:22px 22px; animation:spin 8s linear infinite">
+            <circle cx="35" cy="13" r="2.5" fill="#7db8e8"/>
+            <circle cx="35" cy="13" r="4" fill="rgba(125,184,232,0.2)"/>
+          </g>
+          <defs>
+            <linearGradient id="og" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#4a8ac7"/>
+              <stop offset="100%" stop-color="#7db8e8"/>
+            </linearGradient>
+            <radialGradient id="cg" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#7db8e8"/>
+              <stop offset="100%" stop-color="#2d5a8f"/>
+            </radialGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <div class="vault-title">VAULT</div>
+      <div class="vault-tag">DGC Knowledge Portal</div>
+    </div>
+
+    <!-- Form -->
+    <div id="login-error" class="login-error"></div>
+    <label class="login-label" for="api-key-input">Access Key</label>
+    <input
+      class="login-input" id="api-key-input"
+      type="password" placeholder="Enter your access key"
+      autocomplete="off"
+    />
+    <button class="btn-login" id="login-btn" onclick="doLogin()">Enter VAULT →</button>
+
+    <div class="powered-by">Dahan Group Consulting · VAULT Platform</div>
+  </div>
+</div>
+
+<!-- ── APP ────────────────────────────────────────────────────────────────────── -->
+<div id="app">
+  <!-- Top Nav -->
+  <nav class="top-nav">
+    <!-- DGC Logo -->
+    <svg width="195" height="38" viewBox="0 0 260 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="24" cy="25" rx="19" ry="18" fill="none" stroke="#2d5a8f" stroke-width="2"/>
+      <g style="transform-origin:24px 25px; animation:spin-rev 12s linear infinite">
+        <ellipse cx="24" cy="25" rx="13" ry="9.5" fill="none" stroke="#2d5a8f" stroke-width="1.5"/>
+      </g>
+      <circle cx="24" cy="25" r="3" fill="#4a8ac7"/>
+      <g style="transform-origin:24px 25px; animation:spin 8s linear infinite">
+        <circle cx="37" cy="16" r="2" fill="#4a8ac7" opacity="0.7"/>
+      </g>
+      <line x1="52" y1="10" x2="52" y2="40" stroke="rgba(255,255,255,0.1)" stroke-width="0.7"/>
+      <text x="62" y="27" font-family="'Cormorant Garamond', serif" font-weight="400" font-size="20" fill="#ffffff" letter-spacing="2.5">DAHAN GROUP</text>
+      <text x="109" y="40" font-family="'Questrial', sans-serif" font-weight="400" font-size="6.5" fill="rgba(255,255,255,0.55)" letter-spacing="4">CONSULTING</text>
+    </svg>
+
+    <!-- Nav links -->
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="nav-links">
+        <button class="nav-link active" id="nav-knowledge" onclick="navigate('knowledge')">🧠 Knowledge Base</button>
+        <button class="nav-link" id="nav-sources" onclick="navigate('sources')">📚 Sources</button>
+        <button class="nav-link" id="nav-tickets" onclick="navigate('tickets')">🎫 Tickets</button>
+        <button class="nav-link" id="nav-analytics" onclick="navigate('analytics')">📊 Analytics</button>
+      </div>
+      <button class="nav-logout" onclick="doLogout()">Sign out</button>
+    </div>
+  </nav>
+
+  <!-- App Body -->
+  <div class="app-body">
+    <div class="app-content">
+
+      <!-- ── Knowledge Base Page ─────────────────────────────────────────── -->
+      <div class="page active" id="page-knowledge">
+        <div class="page-header">
+          <div class="page-eyebrow">VAULT · RAG Intelligence</div>
+          <h1 class="page-title">Knowledge Base</h1>
+          <p class="page-desc">Feed knowledge from any source into your AI chatbot. Ingested content is chunked, embedded, and retrieved automatically during conversations.</p>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab('text')" id="tab-text">✏️ Text</button>
+          <button class="tab-btn" onclick="switchTab('docs')" id="tab-docs">📁 Files &amp; Docs</button>
+          <button class="tab-btn" onclick="switchTab('url')" id="tab-url">🌐 Website</button>
+          <button class="tab-btn" onclick="switchTab('youtube')" id="tab-youtube">▶️ YouTube</button>
+        </div>
+
+        <!-- Text -->
+        <div class="tab-panel active card" id="panel-text">
+          <div class="card-title">✏️ Paste Text</div>
+          <div class="form-group">
+            <label class="form-label">Content</label>
+            <textarea class="form-textarea" id="text-content" placeholder="Paste any text — service descriptions, FAQs, policies, case studies, scripts..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Source Label <span style="color:#444;font-weight:400;text-transform:none">(optional)</span></label>
+              <input class="form-input" id="text-source" placeholder="e.g. services-faq, about-page" />
+            </div>
+            <div class="form-group" style="display:flex;align-items:flex-end;">
+              <button class="btn btn-primary" id="btn-text" onclick="ingestText()" style="width:100%;justify-content:center;">
+                Ingest
+              </button>
+            </div>
+          </div>
+          <div class="ingest-result" id="result-text"></div>
+        </div>
+
+        <!-- Files & Docs (TXT, CSV, PDF, XLSX) -->
+        <div class="tab-panel card" id="panel-docs">
+          <div class="card-title">📁 Files &amp; Documents</div>
+
+          <!-- File upload section -->
+          <div class="form-group">
+            <label class="form-label">Upload a File <span style="color:#555;font-weight:400;text-transform:none">— TXT, CSV, PDF, Excel</span></label>
+            <div class="drop-zone" id="drop-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+              <input type="file" id="file-input" accept=".txt,.csv,.pdf,.xlsx,.xls" onchange="onFileSelect(event)" />
+              <div class="drop-icon">📂</div>
+              <div class="drop-text"><strong>Click to browse</strong> or drag &amp; drop</div>
+              <div class="drop-text" style="margin-top:4px;font-size:11px">TXT · CSV · PDF · XLSX</div>
+              <div class="drop-text" style="margin-top:6px;font-size:10px;color:#555">Tip: export Google Sheets as .xlsx and drop it here</div>
+              <div class="drop-name" id="file-name"></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Source Label <span style="color:#444;font-weight:400;text-transform:none">(optional)</span></label>
+              <input class="form-input" id="file-source" placeholder="e.g. product-catalog, handbook" />
+            </div>
+            <div class="form-group" style="display:flex;align-items:flex-end;">
+              <button class="btn btn-primary" id="btn-file" onclick="ingestFile()" style="width:100%;justify-content:center;">Ingest File</button>
+            </div>
+          </div>
+          <div class="ingest-result" id="result-file"></div>
+        </div>
+
+        <!-- Website URL -->
+        <div class="tab-panel card" id="panel-url">
+          <div class="card-title">🌐 Scrape Website</div>
+          <p style="font-size:13px;color:#666;margin-bottom:18px;line-height:1.6;font-family:'Inter',sans-serif">
+            Enter any public webpage URL. VAULT fetches the page, strips navigation and boilerplate, and ingests the main content automatically.
+          </p>
+          <div class="form-group">
+            <label class="form-label">Page URL</label>
+            <input class="form-input" id="url-input" type="url" placeholder="https://yoursite.com/services" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Source Label <span style="color:#444;font-weight:400;text-transform:none">(optional)</span></label>
+              <input class="form-input" id="url-source" placeholder="e.g. homepage, services-page" />
+            </div>
+            <div class="form-group" style="display:flex;align-items:flex-end;">
+              <button class="btn btn-primary" id="btn-url" onclick="ingestUrl()" style="width:100%;justify-content:center;">Fetch &amp; Ingest</button>
+            </div>
+          </div>
+          <div class="ingest-result" id="result-url"></div>
+        </div>
+
+        <!-- YouTube -->
+        <div class="tab-panel card" id="panel-youtube">
+          <div class="card-title">▶️ YouTube Transcript</div>
+          <p style="font-size:13px;color:#666;margin-bottom:18px;line-height:1.6;font-family:'Inter',sans-serif">
+            Paste a YouTube video URL. VAULT extracts the transcript (auto-generated captions) and ingests it. Falls back to title + description if captions are unavailable.
+          </p>
+          <div class="form-group">
+            <label class="form-label">YouTube URL</label>
+            <input class="form-input" id="yt-input" type="url" placeholder="https://www.youtube.com/watch?v=..." />
+            <div class="form-hint">Video must be public. Works with any URL format including youtu.be links.</div>
+          </div>
+          <div style="margin-top:6px">
+            <button class="btn btn-primary" id="btn-yt" onclick="ingestYouTube()">Extract &amp; Ingest</button>
+          </div>
+          <div class="ingest-result" id="result-yt"></div>
+        </div>
+
+      </div>
+
+      <!-- ── Sources Page ────────────────────────────────────────────────── -->
+      <div class="page" id="page-sources">
+        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="page-eyebrow">VAULT · RAG Intelligence</div>
+            <h1 class="page-title">Sources</h1>
+            <p class="page-desc">Manage your ingested knowledge. Delete a source to remove all its chunks from your chatbot's memory. To update content, delete and re-ingest.</p>
+          </div>
+          <button class="btn btn-ghost" onclick="loadSources()" style="margin-top:4px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div id="sources-grid-container">
+          <div style="font-size:13px;color:#555;font-family:'Inter',sans-serif;padding:8px 0">Loading sources...</div>
+        </div>
+      </div>
+
+      <!-- ── Analytics Page ──────────────────────────────────────────────── -->
+      <div class="page" id="page-analytics">
+        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="page-eyebrow">VAULT · RAG Intelligence</div>
+            <h1 class="page-title">Analytics</h1>
+            <p class="page-desc">Live snapshot of your AI chatbot's knowledge base and conversation activity.</p>
+          </div>
+          <button class="btn btn-ghost" onclick="loadStats()" style="margin-top:4px;font-size:12px">↻ Refresh</button>
+        </div>
+
+        <!-- Stats row -->
+        <div class="stats-grid">
+          <div class="stat-card stat-blue">
+            <div class="stat-label">Knowledge Chunks</div>
+            <div class="stat-value" id="stat-chunks">—</div>
+            <div class="stat-sub">Embedded in RAG</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Conversations</div>
+            <div class="stat-value" id="stat-convos">—</div>
+            <div class="stat-sub">Total chat sessions</div>
+          </div>
+          <div class="stat-card stat-green">
+            <div class="stat-label">Leads Captured</div>
+            <div class="stat-value" id="stat-leads">—</div>
+            <div class="stat-sub">Emails collected</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Support Tickets</div>
+            <div class="stat-value" id="stat-tickets">—</div>
+            <div class="stat-sub">Escalations logged</div>
+          </div>
+        </div>
+
+        <!-- Knowledge sources -->
+        <div class="card">
+          <div class="card-title">🗂️ Knowledge Sources</div>
+          <div id="sources-list">
+            <div style="font-size:13px;color:#555;font-family:'Inter',sans-serif">Loading...</div>
+          </div>
+        </div>
+
+        <!-- Charts — coming soon -->
+        <div class="charts-grid">
+          <div class="coming-soon">
+            <div class="coming-soon-icon">📈</div>
+            <div class="coming-soon-title">Conversation Trends <span class="badge badge-soon" style="margin-left:6px">Coming Soon</span></div>
+            <div class="coming-soon-desc">Daily volume and lead capture rate over time. Powered by analytics event logging — Step 4 of the ECHO V2 roadmap.</div>
+          </div>
+          <div class="coming-soon">
+            <div class="coming-soon-icon">🗺️</div>
+            <div class="coming-soon-title">Drop-off Analysis <span class="badge badge-soon" style="margin-left:6px">Coming Soon</span></div>
+            <div class="coming-soon-desc">See where visitors stop engaging — so you can improve the knowledge base and ECHO's response quality.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tickets Page ─────────────────────────────────────────────────── -->
+      <div class="page" id="page-tickets">
+        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="page-eyebrow">VAULT · Support</div>
+            <h1 class="page-title">Tickets</h1>
+            <p class="page-desc">Support requests submitted through your chatbot. Update status, email the visitor directly, or push to your CRM.</p>
+          </div>
+          <button class="btn btn-ghost" onclick="loadTickets()" style="margin-top:4px;font-size:12px">↻ Refresh</button>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="ticket-filter-bar">
+          <button class="ticket-filter-btn active" id="tf-all"        onclick="filterTickets('all')">All</button>
+          <button class="ticket-filter-btn"        id="tf-open"       onclick="filterTickets('open')">Open</button>
+          <button class="ticket-filter-btn"        id="tf-in_progress" onclick="filterTickets('in_progress')">In Progress</button>
+          <button class="ticket-filter-btn"        id="tf-resolved"   onclick="filterTickets('resolved')">Resolved</button>
+        </div>
+
+        <!-- Ticket list -->
+        <div id="tickets-container">
+          <div style="font-size:13px;color:#555;font-family:'Inter',sans-serif;padding:8px 0">Loading tickets...</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_URL = 'https://dgc-chat-api.ericdahan10.workers.dev';
+  let apiKey = localStorage.getItem('vault_key') || '';
+
+  // On load — auto-login if key is stored
+  window.addEventListener('DOMContentLoaded', async () => {
+    if (apiKey) {
+      const ok = await verifyKey(apiKey);
+      if (ok) { showApp(); return; }
+      localStorage.removeItem('vault_key');
+      apiKey = '';
+    }
+  });
+
+  document.getElementById('api-key-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  async function verifyKey(key) {
+    try {
+      const res = await fetch(`${API_URL}/stats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
+        body: JSON.stringify({}),
+      });
+      return res.ok;
+    } catch { return false; }
+  }
+
+  async function doLogin() {
+    const key = document.getElementById('api-key-input').value.trim();
+    const errEl = document.getElementById('login-error');
+    const btn = document.getElementById('login-btn');
+
+    if (!key) { errEl.textContent = 'Please enter your access key.'; errEl.classList.add('visible'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Verifying...';
+    errEl.classList.remove('visible');
+
+    const ok = await verifyKey(key);
+    if (ok) {
+      apiKey = key;
+      localStorage.setItem('vault_key', key);
+      showApp();
+    } else {
+      errEl.textContent = 'Invalid access key. Please try again.';
+      errEl.classList.add('visible');
+      btn.disabled = false;
+      btn.textContent = 'Enter VAULT →';
+    }
+  }
+
+  function doLogout() {
+    localStorage.removeItem('vault_key');
+    apiKey = '';
+    document.getElementById('app').classList.remove('visible');
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('api-key-input').value = '';
+    document.getElementById('login-error').classList.remove('visible');
+    const btn = document.getElementById('login-btn');
+    btn.disabled = false;
+    btn.textContent = 'Enter VAULT →';
+  }
+
+  function showApp() {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app').classList.add('visible');
+    loadStats();
+  }
+
+  // ── Navigation ──────────────────────────────────────────────────────────────
+  function navigate(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+    document.getElementById(`page-${page}`).classList.add('active');
+    document.getElementById(`nav-${page}`).classList.add('active');
+    if (page === 'analytics') loadStats();
+    if (page === 'sources') loadSources();
+    if (page === 'tickets') loadTickets();
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    document.getElementById(`panel-${tab}`).classList.add('active');
+  }
+
+  // ── PDF.js setup ────────────────────────────────────────────────────────────
+  // Loaded from CDN below; this sets the worker path for background parsing
+  window.addEventListener('load', () => {
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  });
+
+  async function extractPdfText(file) {
+    if (!window.pdfjsLib) throw new Error('PDF parser not loaded. Please refresh.');
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      // Join items, preserving line breaks between elements
+      pages.push(content.items.map(item => item.str).join(' '));
+    }
+    return pages.join('\n\n');
+  }
+
+  // ── Drag & drop ─────────────────────────────────────────────────────────────
+  let selectedFile = null;
+
+  function onDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('dragover'); }
+  function onDragLeave()  { document.getElementById('drop-zone').classList.remove('dragover'); }
+  function onDrop(e) {
+    e.preventDefault(); document.getElementById('drop-zone').classList.remove('dragover');
+    const f = e.dataTransfer.files[0]; if (f) setFile(f);
+  }
+  function onFileSelect(e) { const f = e.target.files[0]; if (f) setFile(f); }
+  function setFile(f) {
+    selectedFile = f;
+    const ext = f.name.split('.').pop().toUpperCase();
+    document.getElementById('file-name').textContent = `✓ ${f.name} (${ext} · ${formatBytes(f.size)})`;
+  }
+  function formatBytes(b) {
+    if (b < 1024) return `${b} B`;
+    if (b < 1048576) return `${(b/1024).toFixed(1)} KB`;
+    return `${(b/1048576).toFixed(1)} MB`;
+  }
+
+  // ── API helper ──────────────────────────────────────────────────────────────
+  async function callApi(endpoint, body) {
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+    return data;
+  }
+
+  function setLoading(id, loading, def = 'Ingest') {
+    const btn = document.getElementById(id);
+    btn.disabled = loading;
+    btn.innerHTML = loading ? `<div class="spinner"></div> Processing...` : def;
+  }
+
+  function showResult(id, type, msg) {
+    const el = document.getElementById(id);
+    el.className = `ingest-result ${type}`;
+    el.textContent = msg;
+  }
+
+  // ── Ingest: Text ────────────────────────────────────────────────────────────
+  async function ingestText() {
+    const text = document.getElementById('text-content').value.trim();
+    const source = document.getElementById('text-source').value.trim() || 'manual';
+    if (!text) { showToast('Please enter some text first.', 'error'); return; }
+    setLoading('btn-text', true);
+    try {
+      const { chunks_stored } = await callApi('/ingest', { text, source });
+      showResult('result-text', 'success', `✓ ${chunks_stored} chunk${chunks_stored !== 1 ? 's' : ''} stored in the knowledge base.`);
+      showToast(`${chunks_stored} chunks ingested`, 'success');
+      document.getElementById('text-content').value = '';
+    } catch (e) {
+      showResult('result-text', 'error', `✗ ${e.message}`);
+      showToast(e.message, 'error');
+    }
+    setLoading('btn-text', false, 'Ingest');
+  }
+
+  // ── Ingest: File (TXT, CSV, PDF, XLSX) ──────────────────────────────────────
+  async function ingestFile() {
+    if (!selectedFile) { showToast('Please select a file first.', 'error'); return; }
+    const source = document.getElementById('file-source').value.trim() || selectedFile.name.replace(/\.[^.]+$/, '');
+    const ext = selectedFile.name.split('.').pop().toLowerCase();
+    setLoading('btn-file', true, 'Ingest File');
+    try {
+      let text;
+      if (ext === 'pdf') {
+        text = await extractPdfText(selectedFile);
+        if (!text || text.trim().length < 20) throw new Error('Could not extract text from this PDF. It may be image-based (scanned).');
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        text = await extractXlsxText(selectedFile);
+        if (!text || text.trim().length < 10) throw new Error('Could not extract data from this spreadsheet. Check that it has text content.');
+      } else if (ext === 'csv') {
+        const raw = await selectedFile.text();
+        text = csvToReadable(raw);
+      } else {
+        text = await selectedFile.text();
+      }
+      const { chunks_stored } = await callApi('/ingest', { text, source });
+      showResult('result-file', 'success', `✓ ${chunks_stored} chunk${chunks_stored !== 1 ? 's' : ''} stored from "${selectedFile.name}".`);
+      showToast(`${chunks_stored} chunks ingested from ${ext.toUpperCase()}`, 'success');
+      selectedFile = null;
+      document.getElementById('file-name').textContent = '';
+      document.getElementById('file-input').value = '';
+    } catch (e) {
+      showResult('result-file', 'error', `✗ ${e.message}`);
+      showToast(e.message, 'error');
+    }
+    setLoading('btn-file', false, 'Ingest File');
+  }
+
+  // Parse Excel (.xlsx / .xls) using SheetJS — reads every sheet, converts rows to
+  // "Header: value | Header: value" format so Claude can understand the structure
+  async function extractXlsxText(file) {
+    if (!window.XLSX) throw new Error('Excel parser not loaded. Please refresh.');
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const sections = [];
+    for (const sheetName of workbook.SheetNames) {
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (!rows.length) continue;
+      const headers = Object.keys(rows[0]);
+      const lines = rows.map(row => headers.map(h => `${h}: ${row[h]}`).join(' | '));
+      sections.push(`[Sheet: ${sheetName}]\n` + lines.join('\n'));
+    }
+    return sections.join('\n\n');
+  }
+
+  function csvToReadable(csv) {
+    const lines = csv.split('\n').map(l => l.trim()).filter(l => l);
+    if (!lines.length) return '';
+    const headers = parseLine(lines[0]);
+    return lines.slice(1).map(line => {
+      const vals = parseLine(line);
+      return headers.map((h, i) => `${h}: ${vals[i] || ''}`).join(' | ');
+    }).join('\n');
+  }
+
+  function parseLine(line) {
+    const r = []; let cur = ''; let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"' && !inQ) inQ = true;
+      else if (c === '"' && inQ) { if (line[i+1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else if (c === ',' && !inQ) { r.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    r.push(cur.trim()); return r;
+  }
+
+  // ── Ingest: URL ─────────────────────────────────────────────────────────────
+  async function ingestUrl() {
+    const url = document.getElementById('url-input').value.trim();
+    const source = document.getElementById('url-source').value.trim() || 'website';
+    if (!url) { showToast('Please enter a URL.', 'error'); return; }
+    setLoading('btn-url', true, 'Fetch & Ingest');
+    try {
+      const { chunks_stored } = await callApi('/ingest-url', { url, source });
+      showResult('result-url', 'success', `✓ ${chunks_stored} chunk${chunks_stored !== 1 ? 's' : ''} ingested from ${url}.`);
+      showToast(`${chunks_stored} chunks ingested from website`, 'success');
+      document.getElementById('url-input').value = '';
+    } catch (e) {
+      showResult('result-url', 'error', `✗ ${e.message}`);
+      showToast(e.message, 'error');
+    }
+    setLoading('btn-url', false, 'Fetch & Ingest');
+  }
+
+  // ── Ingest: YouTube ─────────────────────────────────────────────────────────
+  async function ingestYouTube() {
+    const url = document.getElementById('yt-input').value.trim();
+    if (!url) { showToast('Please enter a YouTube URL.', 'error'); return; }
+    setLoading('btn-yt', true, 'Extract & Ingest');
+    try {
+      const { chunks_stored, title } = await callApi('/ingest-youtube', { url });
+      showResult('result-yt', 'success', `✓ ${chunks_stored} chunk${chunks_stored !== 1 ? 's' : ''} ingested${title ? ` from "${title}"` : ''}.`);
+      showToast(`${chunks_stored} chunks ingested from YouTube`, 'success');
+      document.getElementById('yt-input').value = '';
+    } catch (e) {
+      showResult('result-yt', 'error', `✗ ${e.message}`);
+      showToast(e.message, 'error');
+    }
+    setLoading('btn-yt', false, 'Extract & Ingest');
+  }
+
+  // ── Sources ─────────────────────────────────────────────────────────────────
+  let sourcesData = [];
+
+  function sourceIcon(name) {
+    if (!name || name === 'manual') return '✏️';
+    if (name.includes('youtube') || name.startsWith('yt-')) return '▶️';
+    if (name.includes('website') || name.includes('url') || name.includes('http')) return '🌐';
+    return '📄';
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  async function loadSources() {
+    const container = document.getElementById('sources-grid-container');
+    container.innerHTML = '<div style="font-size:13px;color:#555;font-family:Inter,sans-serif;padding:8px 0">Loading sources...</div>';
+    try {
+      const s = await callApi('/stats', {});
+      renderSources(s.sources || []);
+    } catch {
+      container.innerHTML = '<div style="font-size:13px;color:#ef4444;font-family:Inter,sans-serif;padding:8px 0">Failed to load sources. Please refresh.</div>';
+    }
+  }
+
+  function renderSources(sources) {
+    sourcesData = sources;
+    const container = document.getElementById('sources-grid-container');
+    if (!sources.length) {
+      container.innerHTML = `
+        <div class="sources-empty">
+          <div class="sources-empty-icon">📭</div>
+          <div class="sources-empty-title">No knowledge ingested yet</div>
+          <div class="sources-empty-desc">Add content in the Knowledge Base tab — paste text, upload a file, scrape a website, or extract a YouTube transcript.</div>
+        </div>`;
+      return;
+    }
+    container.innerHTML = `<div class="sources-grid">${sources.map((s, i) => `
+      <div class="source-card" id="src-card-${i}">
+        <div class="source-card-header">
+          <div class="source-card-info">
+            <div class="source-card-icon">${sourceIcon(s.source)}</div>
+            <div>
+              <div class="source-card-name" title="${escapeHtml(s.source)}">${escapeHtml(s.source || 'manual')}</div>
+              <div class="source-card-meta">${s.count} chunk${s.count !== 1 ? 's' : ''}</div>
+            </div>
+          </div>
+          <button class="btn-delete" id="src-delbtn-${i}" onclick="confirmDelete(${i})">Delete</button>
+        </div>
+        <div class="source-confirm" id="src-confirm-${i}">
+          <div class="source-confirm-msg">⚠️ Remove all ${s.count} chunk${s.count !== 1 ? 's' : ''}?<br>This cannot be undone.</div>
+          <div class="source-confirm-btns">
+            <button class="btn-cancel" onclick="cancelDelete(${i})">Cancel</button>
+            <button class="btn-confirm-delete" id="src-confirmbtn-${i}" onclick="executeDelete(${i})">Yes, delete</button>
+          </div>
+        </div>
+      </div>`).join('')}</div>`;
+  }
+
+  function confirmDelete(i) {
+    document.getElementById(`src-confirm-${i}`).classList.add('visible');
+    document.getElementById(`src-delbtn-${i}`).disabled = true;
+  }
+
+  function cancelDelete(i) {
+    document.getElementById(`src-confirm-${i}`).classList.remove('visible');
+    document.getElementById(`src-delbtn-${i}`).disabled = false;
+  }
+
+  async function executeDelete(i) {
+    const source = sourcesData[i].source;
+    const btn = document.getElementById(`src-confirmbtn-${i}`);
+    btn.disabled = true;
+    btn.textContent = 'Deleting…';
+    try {
+      await callApi('/delete-source', { source });
+      showToast(`"${source}" removed from knowledge base`, 'success');
+      await loadSources();
+    } catch (e) {
+      showToast(e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Yes, delete';
+    }
+  }
+
+  // ── Analytics ───────────────────────────────────────────────────────────────
+  async function loadStats() {
+    ['chunks','convos','leads','tickets'].forEach(id => {
+      const el = document.getElementById(`stat-${id}`);
+      if (el) el.textContent = '…';
+    });
+    try {
+      const s = await callApi('/stats', {});
+      const set = (id, v) => { const el = document.getElementById(`stat-${id}`); if (el) el.textContent = v; };
+      set('chunks',  s.chunks ?? 0);
+      set('convos',  s.conversations ?? 0);
+      set('leads',   s.leads ?? 0);
+      set('tickets', s.tickets ?? 0);
+
+      const srcEl = document.getElementById('sources-list');
+      if (srcEl) {
+        if (s.sources && s.sources.length > 0) {
+          srcEl.innerHTML = s.sources.map(s =>
+            `<div class="source-row">
+              <span class="source-name">${s.source || 'manual'}</span>
+              <span class="source-count">${s.count} chunk${s.count !== 1 ? 's' : ''}</span>
+            </div>`
+          ).join('');
+        } else {
+          srcEl.innerHTML = '<div style="font-size:13px;color:#555;font-family:Inter,sans-serif;padding:8px 0">No knowledge ingested yet. Add some content in the Knowledge Base tab.</div>';
+        }
+      }
+    } catch {
+      ['chunks','convos','leads','tickets'].forEach(id => {
+        const el = document.getElementById(`stat-${id}`); if (el) el.textContent = '—';
+      });
+    }
+  }
+
+  // ── Tickets ──────────────────────────────────────────────────────────────────
+  let allTickets = [];      // full list from server
+  let activeTicketFilter = 'all';
+
+  async function loadTickets() {
+    document.getElementById('tickets-container').innerHTML =
+      '<div style="font-size:13px;color:#555;font-family:\'Inter\',sans-serif;padding:8px 0">Loading tickets...</div>';
+    try {
+      const data = await callApi('/tickets', {});
+      allTickets = data.tickets || [];
+      renderTickets();
+    } catch (e) {
+      document.getElementById('tickets-container').innerHTML =
+        `<div style="font-size:13px;color:#ef4444;font-family:'Inter',sans-serif;padding:8px 0">Error loading tickets: ${e.message}</div>`;
+    }
+  }
+
+  function filterTickets(status) {
+    activeTicketFilter = status;
+    document.querySelectorAll('.ticket-filter-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tf-${status}`).classList.add('active');
+    renderTickets();
+  }
+
+  function renderTickets() {
+    const filtered = activeTicketFilter === 'all'
+      ? allTickets
+      : allTickets.filter(t => t.status === activeTicketFilter);
+
+    const container = document.getElementById('tickets-container');
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="tickets-empty">
+          <div class="tickets-empty-icon">🎫</div>
+          <div class="tickets-empty-title">${activeTicketFilter === 'all' ? 'No tickets yet' : 'No ' + activeTicketFilter.replace('_', ' ') + ' tickets'}</div>
+          <div class="tickets-empty-desc">${activeTicketFilter === 'all'
+            ? 'Support tickets submitted through your chatbot will appear here automatically.'
+            : 'No tickets match this filter.'}</div>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = filtered.map((t, i) => {
+      const urgency   = (t.urgency || 'medium').toLowerCase();
+      const status    = t.status || 'open';
+      const dateStr   = t.created_at ? new Date(t.created_at).toLocaleString() : '—';
+      const ticketNum = t.ticket_number || 'N/A';
+      const desc      = t.description || t.subject || 'No description provided.';
+      const crmPushed = t.crm_pushed;
+      const emailHref = t.visitor_email
+        ? `mailto:${encodeURIComponent(t.visitor_email)}?subject=${encodeURIComponent('Re: Support Ticket ' + ticketNum)}&body=${encodeURIComponent('Hi ' + (t.visitor_name || 'there') + ',\n\nThank you for reaching out.\n\n')}`
+        : null;
+
+      return `
+        <div class="ticket-card urgency-${urgency}" id="ticket-card-${i}">
+          <div class="ticket-main">
+            <div class="ticket-top">
+              <span class="ticket-id">${escapeHtml(ticketNum)}</span>
+              <span class="ticket-urgency-badge ${urgency}">${urgency}</span>
+              ${crmPushed ? '<span class="ticket-crm-pushed">✓ In CRM</span>' : ''}
+            </div>
+            <div class="ticket-issue">${escapeHtml(desc)}</div>
+            <div class="ticket-visitor">
+              ${t.visitor_name  ? `<span class="ticket-visitor-name"><strong>${escapeHtml(t.visitor_name)}</strong></span>` : ''}
+              ${t.visitor_email ? `<span class="ticket-visitor-email"><a href="mailto:${encodeURIComponent(t.visitor_email)}">${escapeHtml(t.visitor_email)}</a></span>` : ''}
+              ${t.visitor_phone ? `<span class="ticket-visitor-name">${escapeHtml(t.visitor_phone)}</span>` : ''}
+            </div>
+            <div class="ticket-date">${dateStr}</div>
+          </div>
+          <div class="ticket-actions">
+            <select class="ticket-status-select" onchange="updateTicketStatus('${escapeHtml(ticketNum)}', this.value, ${i})">
+              <option value="open"        ${status === 'open'        ? 'selected' : ''}>Open</option>
+              <option value="in_progress" ${status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+              <option value="resolved"    ${status === 'resolved'    ? 'selected' : ''}>Resolved</option>
+            </select>
+            <div class="ticket-action-btns">
+              ${emailHref
+                ? `<a href="${emailHref}" class="ticket-btn ticket-btn-email">✉ Email</a>`
+                : `<button class="ticket-btn ticket-btn-email" disabled style="opacity:0.4;cursor:default">✉ Email</button>`
+              }
+              <button class="ticket-btn ticket-btn-crm ${crmPushed ? 'pushed' : ''}"
+                onclick="${crmPushed ? '' : `pushTicketToCrm(${i})`}"
+                ${crmPushed ? 'disabled' : ''}>
+                ${crmPushed ? '✓ CRM' : '⬆ CRM'}
+              </button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function updateTicketStatus(ticketNum, newStatus, idx) {
+    try {
+      await callApi('/tickets-update', { ticket_number: ticketNum, status: newStatus });
+      // Update local state so the dropdown reflects immediately
+      const ticket = allTickets.find(t => t.ticket_number === ticketNum);
+      if (ticket) ticket.status = newStatus;
+      showToast(`Ticket status updated to ${newStatus.replace('_', ' ')}`);
+    } catch (e) {
+      showToast('Failed to update status: ' + e.message, 'error');
+    }
+  }
+
+  async function pushTicketToCrm(idx) {
+    const filtered = activeTicketFilter === 'all' ? allTickets : allTickets.filter(t => t.status === activeTicketFilter);
+    const ticket = filtered[idx];
+    if (!ticket) return;
+
+    const btn = document.querySelector(`#ticket-card-${idx} .ticket-btn-crm`);
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+    try {
+      await callApi('/ticket-crm-push', {
+        ticket_number: ticket.ticket_number,
+        visitor_name:  ticket.visitor_name,
+        visitor_email: ticket.visitor_email,
+        description:   ticket.description || ticket.subject,
+        urgency:       ticket.urgency,
+      });
+      ticket.crm_pushed = true;
+      showToast('Pushed to CRM successfully');
+      renderTickets();
+    } catch (e) {
+      showToast('CRM push failed: ' + e.message, 'error');
+      if (btn) { btn.disabled = false; btn.textContent = '⬆ CRM'; }
+    }
+  }
+
+  // ── Toast ────────────────────────────────────────────────────────────────────
+  let toastTimer;
+  function showToast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    clearTimeout(toastTimer);
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    toastTimer = setTimeout(() => { el.className = type; }, 3500);
+  }
+</script>
+
+<!-- PDF.js — browser-side PDF text extraction, no server needed -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- SheetJS — browser-side Excel (.xlsx/.xls) parsing, no server needed -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</body>
+</html>

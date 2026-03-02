@@ -465,6 +465,26 @@ async function saveConversationTurn(conversationId, userMsg, assistantMsg, env) 
   );
 }
 
+// ── Save support ticket to Supabase ───────────────────────────────────────────
+// Called from /escalation via ctx.waitUntil — non-blocking.
+// Maps the escalation payload fields (camelCase from frontend) to snake_case columns.
+// Fails silently — Apps Script remains the primary record, Supabase powers VAULT.
+async function saveTicketToSupabase(payload, env) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return;
+  const desc = payload.issueSummary || payload.issue_summary || "";
+  await supabaseInsert("tickets", {
+    client_id:     env.CLIENT_ID,
+    ticket_number: payload.ticketId || payload.ticket_id || "",
+    visitor_name:  payload.clientName  || payload.visitor_name  || "",
+    visitor_email: payload.clientEmail || payload.visitor_email || "",
+    visitor_phone: payload.clientPhone || payload.visitor_phone || "",
+    urgency:       (payload.urgency || "medium").toLowerCase(),
+    subject:       desc.slice(0, 120),
+    description:   desc,
+    status:        "open",
+  }, env);
+}
+
 // ── RAG retrieval ─────────────────────────────────────────────────────────────
 // Finds the most relevant knowledge chunks for the user's message.
 // Fails silently — if RAG errors, the chat continues without extra context.
@@ -979,13 +999,16 @@ export default {
             .sort((a, b) => b.count - a.count);
         }
 
-        // Conversations, leads, tickets — return 0 until analytics logging is built (Step 4)
+        // Real ticket count from Supabase
+        const ticketsCount = await supabaseCount("tickets", "client_id", clientId, env);
+
+        // Conversations, leads — return 0 until analytics logging is built (Step 4)
         return new Response(
           JSON.stringify({
             chunks: chunksCount,
             conversations: 0,
             leads: 0,
-            tickets: 0,
+            tickets: ticketsCount,
             sources,
           }),
           { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
@@ -1168,6 +1191,193 @@ export default {
       });
     }
 
+    // ── /tickets: list all support tickets for this client ───────────────────
+    // Returns tickets newest-first. Optional ?status= filter (open/in_progress/resolved).
+    // Used by the VAULT Tickets page to render the ticket list.
+    if (url.pathname === "/tickets") {
+      try {
+        const status = url.searchParams.get("status");
+        let query = `${env.SUPABASE_URL}/rest/v1/tickets?client_id=eq.${env.CLIENT_ID}&order=created_at.desc`;
+        if (status) query += `&status=eq.${encodeURIComponent(status)}`;
+        const res = await fetch(query, {
+          headers: {
+            apikey: env.SUPABASE_KEY,
+            Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            Accept: "application/json",
+          },
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          throw new Error(`Supabase tickets fetch failed (${res.status}): ${err}`);
+        }
+        const tickets = await res.json();
+        return new Response(JSON.stringify({ tickets }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      } catch (e) {
+        console.error("Tickets list error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /tickets-update: PATCH ticket status or notes ─────────────────────────
+    // Body: { ticket_id: "DGC-...", status: "in_progress" | "open" | "resolved" }
+    // Used by the VAULT Tickets page status dropdown.
+    if (url.pathname === "/tickets-update") {
+      try {
+        const { ticket_number, status, notes } = await request.json();
+        if (!ticket_number) {
+          return new Response(JSON.stringify({ error: "ticket_number required" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+        const patch = {};
+        if (status) patch.status = status;
+        if (notes !== undefined) patch.notes = notes;
+        patch.updated_at = new Date().toISOString();
+
+        const res = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/tickets?client_id=eq.${env.CLIENT_ID}&ticket_number=eq.${encodeURIComponent(ticket_number)}`,
+          {
+            method: "PATCH",
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify(patch),
+          },
+        );
+        if (!res.ok) {
+          const err = await res.text();
+          throw new Error(`Supabase ticket update failed (${res.status}): ${err}`);
+        }
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      } catch (e) {
+        console.error("Tickets update error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /ticket-crm-push: upsert ticket visitor as HubSpot contact + note ────
+    // Body: { ticket_id: "DGC-...", visitor_name: "", visitor_email: "", ... }
+    // Creates/updates a HubSpot contact and logs a note with the ticket details.
+    // HUBSPOT_ACCESS_TOKEN must be set as a secret in the Worker environment.
+    if (url.pathname === "/ticket-crm-push") {
+      try {
+        const body = await request.json();
+        const { ticket_number, visitor_name, visitor_email, description, urgency } = body;
+
+        if (!visitor_email) {
+          return new Response(JSON.stringify({ error: "visitor_email required for CRM push" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+        if (!env.HUBSPOT_ACCESS_TOKEN) {
+          return new Response(JSON.stringify({ error: "HUBSPOT_ACCESS_TOKEN not configured" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+
+        // Upsert contact by email
+        const [firstName, ...lastParts] = (visitor_name || "").split(" ");
+        const lastName = lastParts.join(" ");
+        const upsertRes = await fetch(
+          "https://api.hubapi.com/crm/v3/objects/contacts/batch/upsert",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${env.HUBSPOT_ACCESS_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              inputs: [{
+                idProperty: "email",
+                properties: {
+                  email: visitor_email,
+                  firstname: firstName || "",
+                  lastname: lastName || "",
+                  hs_lead_status: "IN_PROGRESS",
+                },
+              }],
+            }),
+          },
+        );
+        if (!upsertRes.ok) {
+          const err = await upsertRes.text();
+          throw new Error(`HubSpot upsert failed (${upsertRes.status}): ${err}`);
+        }
+        const upsertData = await upsertRes.json();
+        const contactId = upsertData?.results?.[0]?.id;
+
+        // Log a note on the contact with ticket details
+        if (contactId) {
+          const noteBody = [
+            `Support Ticket: ${ticket_number || "N/A"}`,
+            `Urgency: ${urgency || "medium"}`,
+            `Issue: ${description || "No description provided"}`,
+          ].join("\n");
+
+          await fetch("https://api.hubapi.com/crm/v3/objects/notes", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${env.HUBSPOT_ACCESS_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              properties: {
+                hs_note_body: noteBody,
+                hs_timestamp: Date.now().toString(),
+              },
+              associations: [{
+                to: { id: contactId },
+                types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 202 }],
+              }],
+            }),
+          });
+        }
+
+        // Mark ticket as pushed in Supabase
+        if (ticket_number) {
+          await fetch(
+            `${env.SUPABASE_URL}/rest/v1/tickets?client_id=eq.${env.CLIENT_ID}&ticket_number=eq.${encodeURIComponent(ticket_number)}`,
+            {
+              method: "PATCH",
+              headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                "Content-Type": "application/json",
+                Prefer: "return=minimal",
+              },
+              body: JSON.stringify({ crm_pushed: true, updated_at: new Date().toISOString() }),
+            },
+          );
+        }
+
+        return new Response(JSON.stringify({ success: true, contactId: contactId || null }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      } catch (e) {
+        console.error("Ticket CRM push error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
     // ── /escalation endpoint: proxy escalation form direct to Apps Script ──
     if (url.pathname === "/escalation") {
       // [FIX] Use manual redirect follow for Apps Script
@@ -1183,6 +1393,9 @@ export default {
         const res = await postToAppsScript(payload, env);
         const text = await res.text();
         console.log("Escalation proxy response:", res.status, text);
+
+        // Save ticket to Supabase in background — non-blocking
+        ctx.waitUntil(saveTicketToSupabase(payload, env));
 
         // Send confirmation email to client
         if (payload.clientEmail) {
