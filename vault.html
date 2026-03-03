@@ -2545,14 +2545,14 @@
         badge.textContent = `${data.chunks_retrieved.length} chunk${data.chunks_retrieved.length !== 1 ? 's' : ''} retrieved`;
         badge.style.cssText = 'background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);color:#4ade80;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.08em';
       } else {
-        badge.textContent = 'No RAG — answered from base prompt';
-        badge.style.cssText = 'background:rgba(156,163,175,0.1);border:1px solid rgba(156,163,175,0.2);color:#9ca3af;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.08em';
+        badge.textContent = data.debug || 'No RAG — answered from base prompt';
+        badge.style.cssText = 'background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#fca5a5;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.08em';
       }
 
       // Render chunks — expandable cards showing source, similarity, context label, and full content
       const list = document.getElementById('pg-chunks-list');
       if (!data.rag_used || !data.chunks_retrieved.length) {
-        list.innerHTML = '<div class="pg-no-rag">No knowledge chunks were retrieved for this query. Try ingesting more content or rephrasing the question.</div>';
+        list.innerHTML = `<div class="pg-no-rag">${data.debug ? `Debug: ${escapeHtml(data.debug)}` : 'No knowledge chunks were retrieved for this query.'}</div>`;
       } else {
         // Store chunks for expand/collapse toggle
         window._pgChunks = data.chunks_retrieved;

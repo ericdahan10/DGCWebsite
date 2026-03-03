@@ -1730,6 +1730,11 @@ export default {
         let chunks_retrieved = [];
         let rag_used = false;
         let contextText = null;
+        let debug = null; // surface failure reason to UI
+
+        if (!env.OPENAI_API_KEY) debug = "OPENAI_API_KEY not set on worker";
+        else if (!env.SUPABASE_URL || !env.SUPABASE_KEY) debug = "Supabase env vars missing";
+        else if (!env.CLIENT_ID) debug = "CLIENT_ID not set on worker";
 
         if (env.OPENAI_API_KEY && env.SUPABASE_URL && env.SUPABASE_KEY) {
           try {
@@ -1739,6 +1744,7 @@ export default {
               match_count: 4,
               match_client_id: env.CLIENT_ID,
             }, env);
+            debug = `RPC returned ${Array.isArray(chunks) ? chunks.length : 'non-array'} chunks`;
             if (chunks && chunks.length > 0) {
               // Strip [Context: ...] prefix from content before sending to UI so the preview
               // shows the actual content, not the admin-supplied notes prefix
@@ -1780,7 +1786,8 @@ export default {
               rag_used = true;
             }
           } catch (e) {
-            console.error("Playground RAG error (non-fatal):", e.message);
+            debug = `RAG error: ${e.message}`;
+            console.error("Playground RAG error:", e.message);
           }
         }
 
@@ -1815,7 +1822,7 @@ export default {
           .replace(/\[SHOW_CONTACT\]/g, "")
           .trim();
 
-        return new Response(JSON.stringify({ response: cleanResponse, chunks_retrieved, rag_used }), {
+        return new Response(JSON.stringify({ response: cleanResponse, chunks_retrieved, rag_used, debug }), {
           headers: { "Content-Type": "application/json", ...corsHeaders(request) },
         });
       } catch (e) {
