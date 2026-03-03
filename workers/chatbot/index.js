@@ -1002,7 +1002,7 @@ export default {
       }
     }
 
-    // ── /stats: return knowledge base and conversation counts from Supabase ───
+    // ── /stats: full analytics snapshot — chunks, conversations, leads, tickets ─
     if (url.pathname === "/stats") {
       try {
         const clientId = env.CLIENT_ID;
@@ -1010,15 +1010,10 @@ export default {
         // Count knowledge chunks for this client
         const chunksCount = await supabaseCount("knowledge_chunks", "client_id", clientId, env);
 
-        // Count distinct sources and their chunk counts
+        // Count distinct knowledge sources and how many chunks each has
         const sourcesRes = await fetch(
           `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=source&client_id=eq.${clientId}`,
-          {
-            headers: {
-              apikey: env.SUPABASE_KEY,
-              Authorization: `Bearer ${env.SUPABASE_KEY}`,
-            },
-          },
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
         );
         let sources = [];
         if (sourcesRes.ok) {
@@ -1030,22 +1025,128 @@ export default {
             .sort((a, b) => b.count - a.count);
         }
 
-        // Real ticket count from Supabase
-        const ticketsCount = await supabaseCount("tickets", "client_id", clientId, env);
+        // Conversation count from Supabase
+        const conversationsCount = await supabaseCount("conversations", "client_id", clientId, env);
 
-        // Conversations, leads — return 0 until analytics logging is built (Step 4)
+        // Lead stats — fetch score_label, status, source for all leads, compute breakdowns in JS
+        const leadsRes = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/leads?select=score_label,status,source&client_id=eq.${clientId}`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        let leadsTotal = 0, leadsByScore = {}, leadsByStatus = {}, leadsBySource = {};
+        if (leadsRes.ok) {
+          const rows = await leadsRes.json();
+          leadsTotal = rows.length;
+          rows.forEach(r => {
+            const sl = r.score_label || 'Unknown';
+            leadsByScore[sl] = (leadsByScore[sl] || 0) + 1;
+            const st = r.status || 'new';
+            leadsByStatus[st] = (leadsByStatus[st] || 0) + 1;
+            const src = r.source || 'unknown';
+            leadsBySource[src] = (leadsBySource[src] || 0) + 1;
+          });
+        }
+
+        // Ticket stats — fetch status and urgency for all tickets, compute breakdowns in JS
+        const ticketsRes = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/tickets?select=status,urgency&client_id=eq.${clientId}`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        let ticketsTotal = 0, ticketsByStatus = {}, ticketsByUrgency = {};
+        if (ticketsRes.ok) {
+          const rows = await ticketsRes.json();
+          ticketsTotal = rows.length;
+          rows.forEach(r => {
+            const st = r.status || 'open';
+            ticketsByStatus[st] = (ticketsByStatus[st] || 0) + 1;
+            const urg = r.urgency || 'medium';
+            ticketsByUrgency[urg] = (ticketsByUrgency[urg] || 0) + 1;
+          });
+        }
+
         return new Response(
           JSON.stringify({
             chunks: chunksCount,
-            conversations: 0,
-            leads: 0,
-            tickets: ticketsCount,
+            conversations: conversationsCount,
+            leads: leadsTotal,
+            leadsByScore,
+            leadsByStatus,
+            leadsBySource,
+            tickets: ticketsTotal,
+            ticketsByStatus,
+            ticketsByUrgency,
             sources,
           }),
           { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
         );
       } catch (e) {
         console.error("Stats error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /analytics-conversations: list recent conversations with message count ─
+    if (url.pathname === "/analytics-conversations") {
+      try {
+        const clientId = env.CLIENT_ID;
+        const limit = parseInt(url.searchParams.get("limit") || "50", 10);
+
+        // Fetch recent conversations newest-first
+        const convosRes = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/conversations?client_id=eq.${clientId}&order=started_at.desc&limit=${limit}`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        if (!convosRes.ok) throw new Error("Failed to fetch conversations");
+        const convos = await convosRes.json();
+
+        // Count messages for each conversation in parallel
+        const results = await Promise.all(convos.map(async (c) => {
+          const msgCount = await supabaseCount("messages", "conversation_id", c.id, env);
+          return {
+            id: c.id,
+            visitor_id: c.visitor_id,
+            started_at: c.started_at,
+            last_message_at: c.last_message_at,
+            message_count: msgCount,
+          };
+        }));
+
+        return new Response(
+          JSON.stringify({ conversations: results }),
+          { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
+        );
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /conversation-detail: all messages for a given conversation_id ─────────
+    if (url.pathname === "/conversation-detail") {
+      try {
+        const conversationId = url.searchParams.get("id");
+        if (!conversationId) {
+          return new Response(JSON.stringify({ error: "id query param required" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+        const msgsRes = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/messages?conversation_id=eq.${conversationId}&order=created_at.asc`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        if (!msgsRes.ok) throw new Error("Failed to fetch messages");
+        const messages = await msgsRes.json();
+        return new Response(
+          JSON.stringify({ messages }),
+          { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
+        );
+      } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders(request) },

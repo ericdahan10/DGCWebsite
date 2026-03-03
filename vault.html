@@ -474,6 +474,103 @@
 
     .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
 
+    /* ── Analytics bar charts ────────────────────────────────────────────────── */
+    .analytics-section-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #4a6fa5;
+      text-transform: uppercase; margin-bottom: 12px; font-family: 'Inter', sans-serif;
+    }
+    .analytics-charts-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+    .analytics-charts-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px; }
+    .bar-chart-row {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 10px; font-family: 'Inter', sans-serif;
+    }
+    .bar-chart-label { font-size: 12px; color: #8899aa; min-width: 80px; flex-shrink: 0; }
+    .bar-chart-track {
+      flex: 1; height: 8px; background: rgba(255,255,255,0.06);
+      border-radius: 4px; overflow: hidden;
+    }
+    .bar-chart-fill {
+      height: 100%; border-radius: 4px;
+      transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+    }
+    .bar-fill-blue   { background: linear-gradient(90deg, #2d5a8f, #4a8fd4); }
+    .bar-fill-red    { background: linear-gradient(90deg, #a83232, #e05555); }
+    .bar-fill-amber  { background: linear-gradient(90deg, #8f6a00, #d4a420); }
+    .bar-fill-teal   { background: linear-gradient(90deg, #1a6a5a, #28a78a); }
+    .bar-fill-purple { background: linear-gradient(90deg, #5a3a8f, #8a5ad4); }
+    .bar-fill-slate  { background: linear-gradient(90deg, #3a4a5a, #5a7080); }
+    .bar-chart-count { font-size: 12px; color: #ccd; font-weight: 600; min-width: 28px; text-align: right; }
+
+    /* ── Conversation list ───────────────────────────────────────────────────── */
+    .convo-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; border-radius: 8px;
+      cursor: pointer; transition: background 0.15s;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .convo-row:last-child { border-bottom: none; }
+    .convo-row:hover { background: rgba(45,90,143,0.12); }
+    .convo-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, #2d5a8f, #1a3a5c);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: #7ab3e0; flex-shrink: 0;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .convo-meta { flex: 1; min-width: 0; }
+    .convo-visitor { font-size: 13px; color: #c8d8e8; font-weight: 600; font-family: 'Space Grotesk', sans-serif; }
+    .convo-date { font-size: 11px; color: #556; font-family: 'Inter', sans-serif; margin-top: 2px; }
+    .convo-badge {
+      font-size: 11px; color: #7ab3e0; background: rgba(45,90,143,0.18);
+      border: 1px solid rgba(45,90,143,0.25); border-radius: 12px;
+      padding: 2px 8px; flex-shrink: 0; font-family: 'Inter', sans-serif;
+    }
+
+    /* ── Conversation drawer ─────────────────────────────────────────────────── */
+    .convo-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+      z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .convo-overlay.open { opacity: 1; pointer-events: all; }
+    .convo-drawer {
+      position: fixed; top: 0; right: -480px; width: 460px; max-width: 95vw;
+      height: 100vh; background: #181f2a; border-left: 1px solid #2a3d5c;
+      z-index: 201; transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .convo-drawer.open { right: 0; }
+    .drawer-header {
+      padding: 20px 24px 16px; border-bottom: 1px solid #2a3d5c;
+      display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0;
+    }
+    .drawer-title { font-size: 15px; font-weight: 700; color: #e8f0f8; font-family: 'Space Grotesk', sans-serif; }
+    .drawer-subtitle { font-size: 11px; color: #556; font-family: 'Inter', sans-serif; margin-top: 2px; }
+    .drawer-close {
+      background: none; border: none; color: #556; cursor: pointer;
+      font-size: 20px; line-height: 1; padding: 2px 6px; border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .drawer-close:hover { color: #e8f0f8; background: rgba(255,255,255,0.08); }
+    .drawer-messages {
+      flex: 1; overflow-y: auto; padding: 20px 24px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .msg-bubble {
+      max-width: 80%; padding: 10px 14px; border-radius: 12px;
+      font-size: 13px; line-height: 1.55; font-family: 'Inter', sans-serif;
+    }
+    .msg-user {
+      align-self: flex-end; background: #2d5a8f; color: #e8f0f8;
+      border-bottom-right-radius: 4px;
+    }
+    .msg-assistant {
+      align-self: flex-start; background: #262e3d; color: #c8d8e8;
+      border: 1px solid #2a3d5c; border-bottom-left-radius: 4px;
+    }
+    .msg-role-label { font-size: 10px; color: #556; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .drawer-empty { text-align: center; padding: 40px 20px; color: #556; font-size: 13px; font-family: 'Inter', sans-serif; }
+
     /* ── Sources list ──────────────────────────────────────────────────────── */
     .source-row {
       display: flex; justify-content: space-between; align-items: center;
@@ -741,6 +838,9 @@
     @media (max-width: 700px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .charts-grid { grid-template-columns: 1fr; }
+      .analytics-charts-3 { grid-template-columns: 1fr; }
+      .analytics-charts-2 { grid-template-columns: 1fr; }
+      .convo-drawer { width: 100vw; }
       .sources-grid { grid-template-columns: 1fr; }
       .form-row { grid-template-columns: 1fr; }
       .app-content { padding: 24px 16px; }
@@ -1056,14 +1156,14 @@
       <div class="page" id="page-analytics">
         <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
-            <div class="page-eyebrow">VAULT · RAG Intelligence</div>
+            <div class="page-eyebrow">VAULT · Intelligence</div>
             <h1 class="page-title">Analytics</h1>
-            <p class="page-desc">Live snapshot of your AI chatbot's knowledge base and conversation activity.</p>
+            <p class="page-desc">Live snapshot of your chatbot's knowledge base, leads, tickets, and conversations.</p>
           </div>
-          <button class="btn btn-ghost" onclick="loadStats()" style="margin-top:4px;font-size:12px">↻ Refresh</button>
+          <button class="btn btn-ghost" onclick="loadAnalytics()" style="margin-top:4px;font-size:12px">↻ Refresh</button>
         </div>
 
-        <!-- Stats row -->
+        <!-- Stat cards -->
         <div class="stats-grid">
           <div class="stat-card stat-blue">
             <div class="stat-label">Knowledge Chunks</div>
@@ -1078,7 +1178,7 @@
           <div class="stat-card stat-green">
             <div class="stat-label">Leads Captured</div>
             <div class="stat-value" id="stat-leads">—</div>
-            <div class="stat-sub">Emails collected</div>
+            <div class="stat-sub">From chat + contact form</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">Support Tickets</div>
@@ -1087,24 +1187,64 @@
           </div>
         </div>
 
-        <!-- Knowledge sources -->
-        <div class="card">
-          <div class="card-title">Knowledge Sources</div>
-          <div id="sources-list">
-            <div style="font-size:13px;color:#555;font-family:'Inter',sans-serif">Loading...</div>
+        <!-- Lead breakdowns -->
+        <div class="analytics-section-title">Leads</div>
+        <div class="analytics-charts-3">
+          <div class="card" style="margin-bottom:0">
+            <div class="card-title" style="margin-bottom:14px">By Score</div>
+            <div id="chart-leads-score"><div style="color:#556;font-size:12px;font-family:Inter,sans-serif">Loading...</div></div>
+          </div>
+          <div class="card" style="margin-bottom:0">
+            <div class="card-title" style="margin-bottom:14px">By Status</div>
+            <div id="chart-leads-status"><div style="color:#556;font-size:12px;font-family:Inter,sans-serif">Loading...</div></div>
+          </div>
+          <div class="card" style="margin-bottom:0">
+            <div class="card-title" style="margin-bottom:14px">By Source</div>
+            <div id="chart-leads-source"><div style="color:#556;font-size:12px;font-family:Inter,sans-serif">Loading...</div></div>
           </div>
         </div>
 
-        <!-- Charts — coming soon -->
-        <div class="charts-grid">
-          <div class="coming-soon">
-            <div class="coming-soon-title">Conversation Trends <span class="badge badge-soon" style="margin-left:6px">Coming Soon</span></div>
-            <div class="coming-soon-desc">Daily volume and lead capture rate over time. Powered by analytics event logging — Step 4 of the ECHO V2 roadmap.</div>
+        <!-- Ticket breakdowns -->
+        <div class="analytics-section-title" style="margin-top:8px">Tickets</div>
+        <div class="analytics-charts-2" style="margin-bottom:16px">
+          <div class="card" style="margin-bottom:0">
+            <div class="card-title" style="margin-bottom:14px">By Status</div>
+            <div id="chart-tickets-status"><div style="color:#556;font-size:12px;font-family:Inter,sans-serif">Loading...</div></div>
           </div>
-          <div class="coming-soon">
-            <div class="coming-soon-title">Drop-off Analysis <span class="badge badge-soon" style="margin-left:6px">Coming Soon</span></div>
-            <div class="coming-soon-desc">See where visitors stop engaging — so you can improve the knowledge base and ECHO's response quality.</div>
+          <div class="card" style="margin-bottom:0">
+            <div class="card-title" style="margin-bottom:14px">By Urgency</div>
+            <div id="chart-tickets-urgency"><div style="color:#556;font-size:12px;font-family:Inter,sans-serif">Loading...</div></div>
           </div>
+        </div>
+
+        <!-- Knowledge sources + Conversations side by side -->
+        <div class="analytics-section-title">Knowledge Base & Conversations</div>
+        <div class="analytics-charts-2" style="margin-bottom:0">
+          <div class="card" style="margin-bottom:0">
+            <div class="card-title" style="margin-bottom:14px">Knowledge Sources</div>
+            <div id="sources-list">
+              <div style="font-size:13px;color:#555;font-family:'Inter',sans-serif">Loading...</div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:0">
+            <div class="card-title" style="margin-bottom:14px">Recent Conversations <span style="font-size:11px;color:#556;font-weight:400;margin-left:6px">click to view</span></div>
+            <div id="convo-list"><div style="color:#556;font-size:12px;font-family:Inter,sans-serif">Loading...</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Conversation Drawer ──────────────────────────────────────────── -->
+      <div class="convo-overlay" id="convo-overlay" onclick="closeConvoDrawer()"></div>
+      <div class="convo-drawer" id="convo-drawer">
+        <div class="drawer-header">
+          <div>
+            <div class="drawer-title" id="drawer-title">Conversation</div>
+            <div class="drawer-subtitle" id="drawer-subtitle"></div>
+          </div>
+          <button class="drawer-close" onclick="closeConvoDrawer()">✕</button>
+        </div>
+        <div class="drawer-messages" id="drawer-messages">
+          <div class="drawer-empty">Loading messages...</div>
         </div>
       </div>
 
@@ -1252,7 +1392,7 @@
   function showApp() {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app').classList.add('visible');
-    loadStats();
+    loadAnalytics();
   }
 
   // ── Navigation ──────────────────────────────────────────────────────────────
@@ -1261,7 +1401,7 @@
     document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
     document.getElementById(`page-${page}`).classList.add('active');
     document.getElementById(`nav-${page}`).classList.add('active');
-    if (page === 'analytics') loadStats();
+    if (page === 'analytics') loadAnalytics();
     if (page === 'sources') loadSources();
     if (page === 'leads') loadLeads();
     if (page === 'tickets') loadTickets();
@@ -1559,37 +1699,162 @@
   }
 
   // ── Analytics ───────────────────────────────────────────────────────────────
-  async function loadStats() {
+
+  // Bar chart colors — keyed by known value strings for consistent coloring
+  const BAR_COLORS = {
+    HOT: 'bar-fill-red', WARM: 'bar-fill-amber', COLD: 'bar-fill-teal',
+    new: 'bar-fill-blue', contacted: 'bar-fill-purple', qualified: 'bar-fill-teal', converted: 'bar-fill-slate',
+    open: 'bar-fill-red', in_progress: 'bar-fill-amber', resolved: 'bar-fill-teal',
+    high: 'bar-fill-red', medium: 'bar-fill-amber', low: 'bar-fill-teal',
+    chatbot: 'bar-fill-blue', 'contact-form': 'bar-fill-purple', unknown: 'bar-fill-slate',
+  };
+
+  // Renders a horizontal bar chart into a container element from a { label: count } object.
+  function renderBarChart(containerId, dataObj, totalOverride) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    const entries = Object.entries(dataObj).sort((a, b) => b[1] - a[1]);
+    if (entries.length === 0) {
+      el.innerHTML = '<div style="color:#556;font-size:12px;font-family:Inter,sans-serif;padding:8px 0">No data yet.</div>';
+      return;
+    }
+    const total = totalOverride || entries.reduce((s, [, v]) => s + v, 0);
+    el.innerHTML = entries.map(([label, count]) => {
+      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+      const colorClass = BAR_COLORS[label] || 'bar-fill-blue';
+      const displayLabel = label.replace(/_/g, ' ');
+      return `<div class="bar-chart-row">
+        <span class="bar-chart-label">${displayLabel}</span>
+        <div class="bar-chart-track">
+          <div class="bar-chart-fill ${colorClass}" style="width:${pct}%"></div>
+        </div>
+        <span class="bar-chart-count">${count}</span>
+      </div>`;
+    }).join('');
+  }
+
+  async function loadAnalytics() {
+    // Dim stat cards while loading
     ['chunks','convos','leads','tickets'].forEach(id => {
       const el = document.getElementById(`stat-${id}`);
       if (el) el.textContent = '…';
     });
-    try {
-      const s = await callApi('/stats', {});
+
+    // Load stats + conversations in parallel
+    const [statsResult, convosResult] = await Promise.allSettled([
+      callApi('/stats', {}),
+      callApi('/analytics-conversations', {}),
+    ]);
+
+    // ── Stats ──
+    if (statsResult.status === 'fulfilled') {
+      const s = statsResult.value;
       const set = (id, v) => { const el = document.getElementById(`stat-${id}`); if (el) el.textContent = v; };
       set('chunks',  s.chunks ?? 0);
       set('convos',  s.conversations ?? 0);
       set('leads',   s.leads ?? 0);
       set('tickets', s.tickets ?? 0);
 
+      // Lead breakdowns
+      renderBarChart('chart-leads-score',  s.leadsByScore  || {}, s.leads);
+      renderBarChart('chart-leads-status', s.leadsByStatus || {}, s.leads);
+      renderBarChart('chart-leads-source', s.leadsBySource || {}, s.leads);
+
+      // Ticket breakdowns
+      renderBarChart('chart-tickets-status',  s.ticketsByStatus  || {}, s.tickets);
+      renderBarChart('chart-tickets-urgency', s.ticketsByUrgency || {}, s.tickets);
+
+      // Knowledge sources
       const srcEl = document.getElementById('sources-list');
       if (srcEl) {
         if (s.sources && s.sources.length > 0) {
-          srcEl.innerHTML = s.sources.map(s =>
+          srcEl.innerHTML = s.sources.map(src =>
             `<div class="source-row">
-              <span class="source-name">${s.source || 'manual'}</span>
-              <span class="source-count">${s.count} chunk${s.count !== 1 ? 's' : ''}</span>
+              <span class="source-name">${src.source || 'manual'}</span>
+              <span class="source-count">${src.count} chunk${src.count !== 1 ? 's' : ''}</span>
             </div>`
           ).join('');
         } else {
-          srcEl.innerHTML = '<div style="font-size:13px;color:#555;font-family:Inter,sans-serif;padding:8px 0">No knowledge ingested yet. Add some content in the Knowledge Base tab.</div>';
+          srcEl.innerHTML = '<div style="font-size:13px;color:#556;font-family:Inter,sans-serif;padding:8px 0">No knowledge ingested yet.</div>';
         }
       }
-    } catch {
+    } else {
       ['chunks','convos','leads','tickets'].forEach(id => {
         const el = document.getElementById(`stat-${id}`); if (el) el.textContent = '—';
       });
     }
+
+    // ── Conversations list ──
+    const convoListEl = document.getElementById('convo-list');
+    if (convoListEl) {
+      if (convosResult.status === 'fulfilled') {
+        const convos = convosResult.value.conversations || [];
+        if (convos.length === 0) {
+          convoListEl.innerHTML = '<div style="color:#556;font-size:12px;font-family:Inter,sans-serif;padding:8px 0">No conversations yet.</div>';
+        } else {
+          convoListEl.innerHTML = convos.slice(0, 20).map(c => {
+            const initials = (c.visitor_id || 'V').slice(0, 2).toUpperCase();
+            const date = c.started_at ? new Date(c.started_at).toLocaleDateString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+            const msgText = c.message_count === 1 ? '1 message' : `${c.message_count} messages`;
+            return `<div class="convo-row" onclick="openConvoDrawer('${c.id}', '${date}', ${c.message_count})">
+              <div class="convo-avatar">${initials}</div>
+              <div class="convo-meta">
+                <div class="convo-visitor">Visitor ${(c.visitor_id || '').slice(-6)}</div>
+                <div class="convo-date">${date}</div>
+              </div>
+              <div class="convo-badge">${msgText}</div>
+            </div>`;
+          }).join('');
+        }
+      } else {
+        convoListEl.innerHTML = '<div style="color:#556;font-size:12px;font-family:Inter,sans-serif;padding:8px 0">Could not load conversations.</div>';
+      }
+    }
+  }
+
+  // Legacy alias — keeps any other code that calls loadStats() working
+  function loadStats() { loadAnalytics(); }
+
+  // ── Conversation Drawer ──────────────────────────────────────────────────────
+  async function openConvoDrawer(id, date, msgCount) {
+    document.getElementById('drawer-title').textContent = `Conversation`;
+    document.getElementById('drawer-subtitle').textContent = `${date} · ${msgCount} message${msgCount !== 1 ? 's' : ''}`;
+    document.getElementById('drawer-messages').innerHTML = '<div class="drawer-empty">Loading...</div>';
+    document.getElementById('convo-drawer').classList.add('open');
+    document.getElementById('convo-overlay').classList.add('open');
+
+    try {
+      const data = await callApi(`/conversation-detail?id=${id}`, {});
+      const msgs = data.messages || [];
+      if (msgs.length === 0) {
+        document.getElementById('drawer-messages').innerHTML = '<div class="drawer-empty">No messages found.</div>';
+        return;
+      }
+      document.getElementById('drawer-messages').innerHTML = msgs.map(m => {
+        const isUser = m.role === 'user';
+        return `<div class="msg-bubble ${isUser ? 'msg-user' : 'msg-assistant'}">
+          <div class="msg-role-label">${isUser ? 'Visitor' : 'ECHO'}</div>
+          ${escapeHtml(m.content)}
+        </div>`;
+      }).join('');
+      // Scroll to bottom
+      const drawer = document.getElementById('drawer-messages');
+      drawer.scrollTop = drawer.scrollHeight;
+    } catch (e) {
+      document.getElementById('drawer-messages').innerHTML = `<div class="drawer-empty">Error: ${e.message}</div>`;
+    }
+  }
+
+  function closeConvoDrawer() {
+    document.getElementById('convo-drawer').classList.remove('open');
+    document.getElementById('convo-overlay').classList.remove('open');
+  }
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+      .replace(/\n/g, '<br>');
   }
 
   // ── Leads ────────────────────────────────────────────────────────────────────
