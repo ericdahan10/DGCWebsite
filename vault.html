@@ -65,10 +65,10 @@
     }
 
     .nav-link {
-      padding: 7px 14px; border-radius: 7px;
+      padding: 7px 16px; border-radius: 7px;
       font-size: 12px; font-weight: 600;
-      letter-spacing: 0.05em; text-transform: uppercase;
-      color: #888; border: 1px solid transparent;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: #777; border: 1px solid transparent;
       cursor: pointer; transition: all 0.2s; background: none;
       font-family: 'Space Grotesk', sans-serif;
     }
@@ -160,8 +160,8 @@
 
     .login-input {
       width: 100%; background: #111;
-      border: 1px solid #2a2a2a; border-radius: 8px;
-      padding: 12px 14px; font-size: 14px; color: #fff;
+      border: 1px solid #2a3040; border-radius: 8px;
+      padding: 12px 14px; font-size: 14px; color: #e8edf4;
       font-family: 'Space Grotesk', sans-serif;
       outline: none; transition: border-color 0.2s, box-shadow 0.2s;
       margin-bottom: 20px;
@@ -227,12 +227,12 @@
     }
 
     .page-title {
-      font-size: 26px; font-weight: 700;
-      letter-spacing: -0.02em; color: #fff; margin-bottom: 6px;
+      font-size: 28px; font-weight: 700;
+      letter-spacing: -0.02em; color: #fff; margin-bottom: 8px;
     }
 
     .page-desc {
-      font-size: 13px; color: #666; line-height: 1.6;
+      font-size: 13px; color: #888; line-height: 1.6;
       font-family: 'Inter', sans-serif;
     }
 
@@ -285,14 +285,14 @@
 
     .form-label {
       display: block; font-size: 11px; font-weight: 600;
-      color: #888; text-transform: uppercase;
+      color: #99aabb; text-transform: uppercase;
       letter-spacing: 0.08em; margin-bottom: 7px;
     }
 
     .form-input, .form-textarea {
       width: 100%; background: #111;
-      border: 1px solid #2a2a2a; border-radius: 8px;
-      padding: 11px 14px; font-size: 13px; color: #fff;
+      border: 1px solid #2a3040; border-radius: 8px;
+      padding: 11px 14px; font-size: 14px; color: #e8edf4;
       font-family: 'Inter', sans-serif; outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
@@ -384,7 +384,7 @@
     }
 
     .stat-label {
-      font-size: 10px; font-weight: 700; color: #555;
+      font-size: 10px; font-weight: 700; color: #667;
       text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px;
     }
 
@@ -397,7 +397,7 @@
     .stat-blue  .stat-value { color: #4a8ac7; }
     .stat-green .stat-value { color: #4ade80; }
 
-    .stat-sub { font-size: 11px; color: #444; font-family: 'Inter', sans-serif; }
+    .stat-sub { font-size: 11px; color: #556; font-family: 'Inter', sans-serif; }
 
     /* ── Coming soon ────────────────────────────────────────────────────────── */
     .coming-soon {
@@ -544,20 +544,21 @@
     .lead-card {
       background: linear-gradient(150deg, #1e2636, #1c1c1c);
       border: 1px solid #2a3d5c;
-      border-left: 3px solid #2a3d5c;
-      border-radius: 10px;
-      padding: 16px 18px;
-      margin-bottom: 12px;
+      border-left: 4px solid #2a3d5c;
+      border-radius: 12px;
+      padding: 18px 22px;
+      margin-bottom: 14px;
       display: flex; flex-direction: column; gap: 10px;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
+    .lead-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
     .lead-card.score-hot  { border-left-color: #ef4444; }
     .lead-card.score-warm { border-left-color: #f59e0b; }
     .lead-card.score-cold { border-left-color: #4a8ac7; }
     .lead-card.score-none { border-left-color: #3a4a5c; }
 
     .lead-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .lead-name { font-size: 15px; font-weight: 600; color: #e8edf4; }
+    .lead-name { font-size: 16px; font-weight: 700; color: #f0f4f8; letter-spacing: -0.01em; }
 
     .score-badge {
       font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px;
@@ -571,7 +572,7 @@
     .lead-contact a { color: #4a8ac7; text-decoration: none; }
     .lead-contact a:hover { text-decoration: underline; }
 
-    .lead-meta { font-size: 12px; color: #556; font-family: 'Inter', sans-serif; }
+    .lead-meta { font-size: 12px; color: #667; font-family: 'Inter', sans-serif; }
 
     .lead-message {
       font-size: 12px; color: #778899; font-family: 'Inter', sans-serif;
@@ -583,7 +584,7 @@
     .lead-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
     .lead-status-select {
       padding: 5px 10px; border-radius: 6px; border: 1px solid #2a3d5c;
-      background: #141a24; color: #ccc; font-size: 12px; font-family: 'Inter', sans-serif; cursor: pointer;
+      background: #141a24; color: #e0e8f4; font-size: 12px; font-family: 'Inter', sans-serif; cursor: pointer;
     }
     .lead-action-btns { display: flex; gap: 8px; margin-left: auto; }
     .lead-btn {
@@ -651,7 +652,7 @@
 
     .ticket-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex-shrink: 0; }
     .ticket-status-select {
-      background: #1a2535; color: #ccc; border: 1px solid #2a3d5c; border-radius: 6px;
+      background: #1a2535; color: #e0e8f4; border: 1px solid #2a3d5c; border-radius: 6px;
       padding: 5px 10px; font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer;
       outline: none;
     }
@@ -783,11 +784,11 @@
     <!-- Nav links -->
     <div style="display:flex;align-items:center;gap:12px">
       <div class="nav-links">
-        <button class="nav-link active" id="nav-knowledge" onclick="navigate('knowledge')">🧠 Knowledge Base</button>
-        <button class="nav-link" id="nav-sources" onclick="navigate('sources')">📚 Sources</button>
-        <button class="nav-link" id="nav-leads" onclick="navigate('leads')">👤 Leads</button>
-        <button class="nav-link" id="nav-tickets" onclick="navigate('tickets')">🎫 Tickets</button>
-        <button class="nav-link" id="nav-analytics" onclick="navigate('analytics')">📊 Analytics</button>
+        <button class="nav-link active" id="nav-knowledge" onclick="navigate('knowledge')">Knowledge Base</button>
+        <button class="nav-link" id="nav-sources" onclick="navigate('sources')">Sources</button>
+        <button class="nav-link" id="nav-leads" onclick="navigate('leads')">Leads</button>
+        <button class="nav-link" id="nav-tickets" onclick="navigate('tickets')">Tickets</button>
+        <button class="nav-link" id="nav-analytics" onclick="navigate('analytics')">Analytics</button>
       </div>
       <button class="nav-logout" onclick="doLogout()">Sign out</button>
     </div>
@@ -807,15 +808,15 @@
 
         <!-- Tab bar -->
         <div class="tab-bar">
-          <button class="tab-btn active" onclick="switchTab('text')" id="tab-text">✏️ Text</button>
-          <button class="tab-btn" onclick="switchTab('docs')" id="tab-docs">📁 Files &amp; Docs</button>
-          <button class="tab-btn" onclick="switchTab('url')" id="tab-url">🌐 Website</button>
-          <button class="tab-btn" onclick="switchTab('youtube')" id="tab-youtube">▶️ YouTube</button>
+          <button class="tab-btn active" onclick="switchTab('text')" id="tab-text">Text</button>
+          <button class="tab-btn" onclick="switchTab('docs')" id="tab-docs">Files &amp; Docs</button>
+          <button class="tab-btn" onclick="switchTab('url')" id="tab-url">Website</button>
+          <button class="tab-btn" onclick="switchTab('youtube')" id="tab-youtube">YouTube</button>
         </div>
 
         <!-- Text -->
         <div class="tab-panel active card" id="panel-text">
-          <div class="card-title">✏️ Paste Text</div>
+          <div class="card-title">Paste Text</div>
           <div class="form-group">
             <label class="form-label">Content</label>
             <textarea class="form-textarea" id="text-content" placeholder="Paste any text — service descriptions, FAQs, policies, case studies, scripts..."></textarea>
@@ -836,14 +837,14 @@
 
         <!-- Files & Docs (TXT, CSV, PDF, XLSX) -->
         <div class="tab-panel card" id="panel-docs">
-          <div class="card-title">📁 Files &amp; Documents</div>
+          <div class="card-title">Files &amp; Documents</div>
 
           <!-- File upload section -->
           <div class="form-group">
             <label class="form-label">Upload a File <span style="color:#555;font-weight:400;text-transform:none">— TXT, CSV, PDF, Excel</span></label>
             <div class="drop-zone" id="drop-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
               <input type="file" id="file-input" accept=".txt,.csv,.pdf,.xlsx,.xls" onchange="onFileSelect(event)" />
-              <div class="drop-icon">📂</div>
+              <div class="drop-icon" style="font-size:22px;color:#3a6a9f;">↑</div>
               <div class="drop-text"><strong>Click to browse</strong> or drag &amp; drop</div>
               <div class="drop-text" style="margin-top:4px;font-size:11px">TXT · CSV · PDF · XLSX</div>
               <div class="drop-text" style="margin-top:6px;font-size:10px;color:#555">Tip: export Google Sheets as .xlsx and drop it here</div>
@@ -864,7 +865,7 @@
 
         <!-- Website URL -->
         <div class="tab-panel card" id="panel-url">
-          <div class="card-title">🌐 Scrape Website</div>
+          <div class="card-title">Scrape Website</div>
           <p style="font-size:13px;color:#666;margin-bottom:18px;line-height:1.6;font-family:'Inter',sans-serif">
             Enter any public webpage URL. VAULT fetches the page, strips navigation and boilerplate, and ingests the main content automatically.
           </p>
@@ -886,7 +887,7 @@
 
         <!-- YouTube -->
         <div class="tab-panel card" id="panel-youtube">
-          <div class="card-title">▶️ YouTube Transcript</div>
+          <div class="card-title">YouTube Transcript</div>
           <p style="font-size:13px;color:#666;margin-bottom:18px;line-height:1.6;font-family:'Inter',sans-serif">
             Paste a YouTube video URL. VAULT extracts the transcript (auto-generated captions) and ingests it. Falls back to title + description if captions are unavailable.
           </p>
@@ -955,7 +956,7 @@
 
         <!-- Knowledge sources -->
         <div class="card">
-          <div class="card-title">🗂️ Knowledge Sources</div>
+          <div class="card-title">Knowledge Sources</div>
           <div id="sources-list">
             <div style="font-size:13px;color:#555;font-family:'Inter',sans-serif">Loading...</div>
           </div>
@@ -964,12 +965,10 @@
         <!-- Charts — coming soon -->
         <div class="charts-grid">
           <div class="coming-soon">
-            <div class="coming-soon-icon">📈</div>
             <div class="coming-soon-title">Conversation Trends <span class="badge badge-soon" style="margin-left:6px">Coming Soon</span></div>
             <div class="coming-soon-desc">Daily volume and lead capture rate over time. Powered by analytics event logging — Step 4 of the ECHO V2 roadmap.</div>
           </div>
           <div class="coming-soon">
-            <div class="coming-soon-icon">🗺️</div>
             <div class="coming-soon-title">Drop-off Analysis <span class="badge badge-soon" style="margin-left:6px">Coming Soon</span></div>
             <div class="coming-soon-desc">See where visitors stop engaging — so you can improve the knowledge base and ECHO's response quality.</div>
           </div>
@@ -984,12 +983,12 @@
             <h1 class="page-title">Leads</h1>
             <p class="page-desc">Everyone who reached out via chat or contact form. Push to CRM, export to TRACE, or track status.</p>
           </div>
-          <button class="leads-export-all-btn" onclick="exportLeads(getFilteredLeads(), 'leads-export')">⬇ Export All</button>
+          <button class="leads-export-all-btn" onclick="exportLeads(getFilteredLeads(), 'leads-export')">Export All</button>
         </div>
 
         <div class="ticket-filter-bar" style="margin-top:20px">
           <button class="ticket-filter-btn active" id="lf-all"       onclick="filterLeads('all')">All</button>
-          <button class="ticket-filter-btn"        id="lf-HOT"       onclick="filterLeads('HOT')">🔥 HOT</button>
+          <button class="ticket-filter-btn"        id="lf-HOT"       onclick="filterLeads('HOT')">HOT</button>
           <button class="ticket-filter-btn"        id="lf-WARM"      onclick="filterLeads('WARM')">WARM</button>
           <button class="ticket-filter-btn"        id="lf-COLD"      onclick="filterLeads('COLD')">COLD</button>
           <button class="ticket-filter-btn"        id="lf-new"       onclick="filterLeads('new')">New</button>
@@ -1281,9 +1280,10 @@
 
   // ── Ingest: URL ─────────────────────────────────────────────────────────────
   async function ingestUrl() {
-    const url = document.getElementById('url-input').value.trim();
+    let url = document.getElementById('url-input').value.trim();
     const source = document.getElementById('url-source').value.trim() || 'website';
     if (!url) { showToast('Please enter a URL.', 'error'); return; }
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
     setLoading('btn-url', true, 'Fetch & Ingest');
     try {
       const { chunks_stored } = await callApi('/ingest-url', { url, source });
@@ -1473,13 +1473,15 @@
     const container = document.getElementById('leads-container');
     const filtered = getFilteredLeads();
     if (!filtered.length) {
-      container.innerHTML = '<div class="leads-empty">No leads found.' +
-        (allLeads.length ? ' Try a different filter.' : ' Leads appear here once someone reaches out via chat or the contact form.') +
+      container.innerHTML = '<div class="leads-empty">' +
+        (allLeads.length ? 'No leads match this filter.' : 'No leads yet. Leads appear here once someone reaches out via chat or the contact form.') +
         '</div>';
       return;
     }
 
-    container.innerHTML = filtered.map((l, i) => {
+    const countLine = `<div style="font-size:12px;color:#556;font-family:'Inter',sans-serif;margin-bottom:16px;">${filtered.length} lead${filtered.length !== 1 ? 's' : ''}</div>`;
+
+    container.innerHTML = countLine + filtered.map((l, i) => {
       const scoreLabel = (l.score_label || '').toUpperCase();
       const scoreClass = scoreLabel === 'HOT' ? 'score-hot' : scoreLabel === 'WARM' ? 'score-warm' : scoreLabel === 'COLD' ? 'score-cold' : 'score-none';
       const scoreBadge = scoreLabel
@@ -1503,7 +1505,7 @@
         </div>
         <div class="lead-meta">via ${sourceStr}${dateStr ? ' · ' + dateStr : ''}</div>
         ${l.message   ? `<div class="lead-message">${l.message.slice(0, 240)}${l.message.length > 240 ? '…' : ''}</div>` : ''}
-        ${l.interests ? `<div class="lead-interests">🎯 ${l.interests}</div>` : ''}
+        ${l.interests ? `<div class="lead-interests">Interests: ${l.interests}</div>` : ''}
         <div class="lead-actions">
           <select class="lead-status-select" onchange="updateLeadStatus('${l.id}', this.value, ${i})">
             <option value="new"       ${l.status==='new'       ? 'selected':''}>New</option>
