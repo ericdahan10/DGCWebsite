@@ -541,6 +541,7 @@
     }
     .convo-meta { flex: 1; min-width: 0; }
     .convo-visitor { font-size: 13px; color: #c8d8e8; font-weight: 600; font-family: 'Space Grotesk', sans-serif; }
+    .convo-sub { font-size: 11px; color: #7a9ab8; font-family: 'Inter', sans-serif; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .convo-date { font-size: 11px; color: #556; font-family: 'Inter', sans-serif; margin-top: 2px; }
     .convo-badge {
       font-size: 11px; color: #7ab3e0; background: rgba(45,90,143,0.18);
@@ -2122,6 +2123,24 @@
     setTimeout(tryFilter, 100);
   }
 
+  // Normalize raw source values (stored in DB) to clean display labels.
+  // Both the raw Worker string and any legacy form label map to the same key.
+  const SOURCE_LABEL_MAP = {
+    'chatbot':                  'Chatbot',
+    'contact-form':             'Contact Form',
+    'Website Contact Form':     'Contact Form',
+    'AI Chatbot (inline form)': 'Chatbot',
+    'inline-form':              'Chatbot',
+  };
+  function normalizeSourceData(raw) {
+    const out = {};
+    Object.entries(raw).forEach(([k, v]) => {
+      const label = SOURCE_LABEL_MAP[k] || k;
+      out[label] = (out[label] || 0) + v;
+    });
+    return out;
+  }
+
   async function loadAnalytics() {
     // Dim stat cards while loading
     ['chunks','convos','leads','tickets'].forEach(id => {
@@ -2147,7 +2166,7 @@
       // Lead breakdowns — clicking navigates to Leads page with that filter active
       renderBarChart('chart-leads-score',  s.leadsByScore  || {}, s.leads,   "navigateFilterLeads('{label}')");
       renderBarChart('chart-leads-status', s.leadsByStatus || {}, s.leads,   "navigateFilterLeads('{label}')");
-      renderBarChart('chart-leads-source', s.leadsBySource || {}, s.leads,   "navigate('leads')");
+      renderBarChart('chart-leads-source', normalizeSourceData(s.leadsBySource || {}), s.leads, "navigate('leads')");
 
       // Ticket breakdowns — clicking navigates to Tickets page with that filter active
       renderBarChart('chart-tickets-status',  s.ticketsByStatus  || {}, s.tickets, "navigateFilterTickets('{label}')");
@@ -2182,13 +2201,24 @@
           convoListEl.innerHTML = '<div style="color:#556;font-size:12px;font-family:Inter,sans-serif;padding:8px 0">No conversations yet.</div>';
         } else {
           convoListEl.innerHTML = convos.slice(0, 20).map(c => {
-            const initials = (c.visitor_id || 'V').slice(0, 2).toUpperCase();
+            // Use real name if lead was captured in this conversation, else show short visitor ID
+            const displayName = c.visitor_name || `Visitor ${(c.visitor_id || '').slice(-6)}`;
+            const subLine = c.visitor_name
+              ? (c.visitor_email || c.preview || '')
+              : (c.preview || '');
+            const initials = c.visitor_name
+              ? c.visitor_name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()
+              : (c.visitor_id || 'V').slice(0, 2).toUpperCase();
             const date = c.started_at ? new Date(c.started_at).toLocaleDateString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
             const msgText = c.message_count === 1 ? '1 message' : `${c.message_count} messages`;
-            return `<div class="convo-row" onclick="openConvoDrawer('${c.id}', '${date}', ${c.message_count})">
+            const subHtml = subLine
+              ? `<div class="convo-sub">${escapeHtml(subLine.slice(0, 60))}</div>`
+              : '';
+            return `<div class="convo-row" onclick="openConvoDrawer('${c.id}', '${escapeHtml(displayName)}', ${c.message_count || 0})">
               <div class="convo-avatar">${initials}</div>
               <div class="convo-meta">
-                <div class="convo-visitor">Visitor ${(c.visitor_id || '').slice(-6)}</div>
+                <div class="convo-visitor">${escapeHtml(displayName)}</div>
+                ${subHtml}
                 <div class="convo-date">${date}</div>
               </div>
               <div class="convo-badge">${msgText}</div>
@@ -2205,9 +2235,9 @@
   function loadStats() { loadAnalytics(); }
 
   // ── Conversation Drawer ──────────────────────────────────────────────────────
-  async function openConvoDrawer(id, date, msgCount) {
-    document.getElementById('drawer-title').textContent = `Conversation`;
-    document.getElementById('drawer-subtitle').textContent = `${date} · ${msgCount} message${msgCount !== 1 ? 's' : ''}`;
+  async function openConvoDrawer(id, visitorLabel, msgCount) {
+    document.getElementById('drawer-title').textContent = visitorLabel || 'Conversation';
+    document.getElementById('drawer-subtitle').textContent = `${msgCount} message${msgCount !== 1 ? 's' : ''}`;
     document.getElementById('drawer-messages').innerHTML = '<div class="drawer-empty">Loading...</div>';
     document.getElementById('convo-drawer').classList.add('open');
     document.getElementById('convo-overlay').classList.add('open');

@@ -1126,7 +1126,7 @@ export default {
       }
     }
 
-    // ── /analytics-conversations: list recent conversations with message count ─
+    // ── /analytics-conversations: list recent conversations with visitor info ───
     if (url.pathname === "/analytics-conversations") {
       try {
         const clientId = env.CLIENT_ID;
@@ -1140,17 +1140,62 @@ export default {
         if (!convosRes.ok) throw new Error("Failed to fetch conversations");
         const convos = await convosRes.json();
 
-        // Count messages for each conversation in parallel
-        const results = await Promise.all(convos.map(async (c) => {
-          const msgCount = await supabaseCount("messages", "conversation_id", c.id, env);
+        if (convos.length === 0) {
+          return new Response(JSON.stringify({ conversations: [] }),
+            { headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+        }
+
+        // Batch-fetch all messages for all conversations in one request
+        // This is far more efficient than N individual supabaseCount calls
+        const convoIds = convos.map(c => c.id).join(",");
+        const msgsRes = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/messages?conversation_id=in.(${convoIds})&order=created_at.asc`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        const allMsgs = msgsRes.ok ? await msgsRes.json() : [];
+
+        // Group messages by conversation_id
+        const msgsByConvo = {};
+        allMsgs.forEach(m => {
+          if (!msgsByConvo[m.conversation_id]) msgsByConvo[m.conversation_id] = [];
+          msgsByConvo[m.conversation_id].push(m);
+        });
+
+        // Build enriched conversation objects
+        const results = convos.map(c => {
+          const msgs = msgsByConvo[c.id] || [];
+
+          // Scan assistant messages for [LEAD_DATA] JSON to extract visitor name/email
+          let visitor_name = null, visitor_email = null;
+          for (const m of msgs) {
+            if (m.role === "assistant") {
+              const match = (m.content || "").match(/\[LEAD_DATA\]([\s\S]*?)\[\/LEAD_DATA\]/);
+              if (match) {
+                try {
+                  const lead = JSON.parse(match[1]);
+                  visitor_name = lead.name || lead.visitor_name || null;
+                  visitor_email = lead.email || lead.visitor_email || null;
+                } catch {}
+                break;
+              }
+            }
+          }
+
+          // First user message as a preview (fallback when no lead name available)
+          const firstUserMsg = msgs.find(m => m.role === "user");
+          const preview = firstUserMsg ? (firstUserMsg.content || "").slice(0, 100) : null;
+
           return {
             id: c.id,
             visitor_id: c.visitor_id,
             started_at: c.started_at,
             last_message_at: c.last_message_at,
-            message_count: msgCount,
+            message_count: msgs.length,
+            visitor_name,
+            visitor_email,
+            preview,
           };
-        }));
+        });
 
         return new Response(
           JSON.stringify({ conversations: results }),
