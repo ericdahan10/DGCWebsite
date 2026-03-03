@@ -341,12 +341,13 @@ async function supabaseCount(table, filterKey, filterValue, env) {
 // Returns the persona prompt (custom from Supabase or hardcoded default) with
 // ROUTING_INSTRUCTIONS ALWAYS appended. This means lead capture, support ticket
 // detection, and contact form routing can never be broken by editing Settings.
-async function getSystemPrompt(env) {
+async function getSystemPrompt(clientId, env) {
   let persona = DGC_SYSTEM_PROMPT;
-  if (env.SUPABASE_URL && env.SUPABASE_KEY && env.CLIENT_ID) {
+  const resolvedId = clientId || env.CLIENT_ID;
+  if (env.SUPABASE_URL && env.SUPABASE_KEY && resolvedId) {
     try {
       const res = await fetch(
-        `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${env.CLIENT_ID}&select=system_prompt`,
+        `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${resolvedId}&select=system_prompt`,
         { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
       );
       if (res.ok) {
@@ -647,7 +648,7 @@ async function submitToFormspree(leadData, chatContext, env) {
 
 // ── Lead worker (qualification + email) ──────────────────────────────────────
 
-async function sendToLeadWorker(leadData, chatContext, env) {
+async function sendToLeadWorker(leadData, chatContext, env, clientId) {
   try {
     const res = await fetch(env.LEAD_WORKER_URL, {
       method: "POST",
@@ -658,6 +659,7 @@ async function sendToLeadWorker(leadData, chatContext, env) {
         phone: leadData.phone || "",
         source: "AI Chatbot",
         conversation: chatContext || "",
+        client_id: clientId || env.CLIENT_ID,
       }),
     });
     console.log("Lead worker status:", res.status);
@@ -808,7 +810,7 @@ export default {
         const row = await fetchClientRow(slugOrId);
         const widgetCfg = row?.widget_config || {};
         return new Response(JSON.stringify({
-          client_id:     row?.slug || row?.id || slugOrId,
+          client_id:     row?.id || slugOrId,
           display_name:  widgetCfg.display_name  || WIDGET_DEFAULTS.display_name,
           brand_line:    widgetCfg.brand_line     || WIDGET_DEFAULTS.brand_line,
           greeting:      widgetCfg.greeting       || WIDGET_DEFAULTS.greeting,
@@ -2190,6 +2192,9 @@ export default {
       const body = await request.json();
       const messages = body.messages || [];
       const visitorId = body.visitor_id || null;
+      // Use client_id from the widget request so each client gets their own
+      // system prompt, knowledge base, and conversation history.
+      const clientId = body.client_id || env.CLIENT_ID;
 
       // ── Visitor Memory: load prior conversation history ───────────────────
       // Fetches previous sessions from Supabase so ECHO remembers returning visitors.
@@ -2198,7 +2203,7 @@ export default {
       let priorHistory = [];
       if (visitorId && env.SUPABASE_URL && env.SUPABASE_KEY) {
         try {
-          conversationId = await getOrCreateConversation(visitorId, env.CLIENT_ID, env);
+          conversationId = await getOrCreateConversation(visitorId, clientId, env);
           // Fetch last 10 messages from previous sessions (not the current session — frontend sends those)
           const history = await fetchConversationHistory(conversationId, 10, env);
           // Only include history that predates the current session messages to avoid duplication
@@ -2213,12 +2218,12 @@ export default {
       // Finds chunks in Supabase closest to the user's latest message.
       // If no chunks found (or RAG errors), chat continues with base prompt.
       // getSystemPrompt() checks for a custom prompt in Supabase first (set via VAULT Settings).
-      let systemPrompt = await getSystemPrompt(env);
+      let systemPrompt = await getSystemPrompt(clientId, env);
       const lastUserMsg = [...messages]
         .reverse()
         .find((m) => m.role === "user");
       if (lastUserMsg && env.OPENAI_API_KEY && env.SUPABASE_URL) {
-        const context = await retrieveContext(lastUserMsg.content, env.CLIENT_ID, env);
+        const context = await retrieveContext(lastUserMsg.content, clientId, env);
         if (context) {
           systemPrompt += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nKNOWLEDGE BASE — use this to answer accurately\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${context}`;
         }
@@ -2318,7 +2323,7 @@ export default {
 
       if (!leadSubmitted && tagLead?.email) {
         console.log("Lead found via tags:", JSON.stringify(tagLead));
-        ctx.waitUntil(sendToLeadWorker(tagLead, chatContext, env));
+        ctx.waitUntil(sendToLeadWorker(tagLead, chatContext, env, clientId));
         leadSubmitted = true;
       }
 
@@ -2335,7 +2340,7 @@ export default {
               "Lead found via fallback:",
               JSON.stringify(fallbackLead),
             );
-            ctx.waitUntil(sendToLeadWorker(fallbackLead, chatContext, env));
+            ctx.waitUntil(sendToLeadWorker(fallbackLead, chatContext, env, clientId));
           }
         }
       }
