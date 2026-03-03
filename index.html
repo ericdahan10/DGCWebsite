@@ -6343,10 +6343,13 @@
             }).catch(() => {});
           }
 
+          // Hide the "Get In Touch" intro block (heading, CTA button, "or fill out the form below")
+          const intro = document.querySelector('.contact-intro');
+          if (intro) intro.style.display = 'none';
+
           // Replace form with success message — no redirect
           this.innerHTML = `
             <div style="text-align:center;padding:48px 24px;">
-              <div style="font-size:40px;margin-bottom:16px;">✅</div>
               <h3 style="font-size:22px;font-weight:700;color:#fff;margin-bottom:10px;">We'll be in touch soon!</h3>
               <p style="color:rgba(255,255,255,0.6);font-size:15px;line-height:1.6;">Thanks for reaching out. Someone from the DGC team will get back to you within one business day.</p>
             </div>`;

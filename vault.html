@@ -254,6 +254,28 @@
       padding-left: 12px; border-left: 2px solid #2d5a8f;
     }
 
+    /* ── Page orb stamp — appears above every page section ─────────────────── */
+    .page-orb-stamp {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid rgba(45,90,143,0.2);
+    }
+
+    .page-orb-stamp-text { line-height: 1; }
+
+    .page-orb-stamp-vault {
+      font-size: 20px; font-weight: 800;
+      letter-spacing: 0.18em;
+      background: linear-gradient(135deg, #ffffff 0%, #a8d4f5 40%, #4a8ac7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    .page-orb-stamp-tag {
+      font-size: 9px; color: #3a6090; font-weight: 600;
+      letter-spacing: 0.18em; text-transform: uppercase; margin-top: 4px;
+    }
+
     /* ── Vault subtitle (login) ─────────────────────────────────────────────── */
     .vault-subtitle {
       font-size: 12px; font-weight: 500;
@@ -794,11 +816,17 @@
 
     <!-- Form -->
     <div id="login-error" class="login-error"></div>
-    <label class="login-label" for="api-key-input">Access Key</label>
+    <label class="login-label" for="login-username">Username</label>
     <input
-      class="login-input" id="api-key-input"
-      type="password" placeholder="Enter your access key"
-      autocomplete="off"
+      class="login-input" id="login-username"
+      type="text" placeholder="Username"
+      autocomplete="username"
+    />
+    <label class="login-label" for="login-password">Password</label>
+    <input
+      class="login-input" id="login-password"
+      type="password" placeholder="Password"
+      autocomplete="current-password"
     />
     <button class="btn-login" id="login-btn" onclick="doLogin()">Enter VAULT →</button>
 
@@ -841,6 +869,33 @@
   <!-- App Body -->
   <div class="app-body">
     <div class="app-content">
+
+      <!-- ── VAULT Page Orb Stamp — shown on every page ──────────────────── -->
+      <div class="page-orb-stamp">
+        <svg width="42" height="42" viewBox="0 0 44 44" fill="none">
+          <ellipse cx="22" cy="22" rx="20" ry="19" fill="none" stroke="rgba(74,138,199,0.15)" stroke-width="0.8"/>
+          <g style="transform-origin:22px 22px; animation:spin-rev 12s linear infinite">
+            <ellipse cx="22" cy="22" rx="13" ry="8.5" fill="none" stroke="url(#ps-og)" stroke-width="1.6"/>
+          </g>
+          <circle cx="22" cy="22" r="3.5" fill="url(#ps-cg)"/>
+          <circle cx="22" cy="22" r="1.5" fill="#fff" opacity="0.9"/>
+          <g style="transform-origin:22px 22px; animation:spin 8s linear infinite">
+            <circle cx="34" cy="13" r="2" fill="#7db8e8" opacity="0.8"/>
+          </g>
+          <defs>
+            <linearGradient id="ps-og" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#4a8ac7"/><stop offset="100%" stop-color="#7db8e8"/>
+            </linearGradient>
+            <radialGradient id="ps-cg" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#7db8e8"/><stop offset="100%" stop-color="#2d5a8f"/>
+            </radialGradient>
+          </defs>
+        </svg>
+        <div class="page-orb-stamp-text">
+          <div class="page-orb-stamp-vault">VAULT</div>
+          <div class="page-orb-stamp-tag">DGC Intelligence Platform</div>
+        </div>
+      </div>
 
       <!-- ── Knowledge Base Page ─────────────────────────────────────────── -->
       <div class="page active" id="page-knowledge">
@@ -1122,10 +1177,15 @@
     }
   });
 
-  document.getElementById('api-key-input').addEventListener('keydown', e => {
+  // Enter key on either field submits
+  document.getElementById('login-password').addEventListener('keydown', e => {
     if (e.key === 'Enter') doLogin();
   });
+  document.getElementById('login-username').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('login-password').focus();
+  });
 
+  // verifyKey — used for auto-login with stored key (calls /stats)
   async function verifyKey(key) {
     try {
       const res = await fetch(`${API_URL}/stats`, {
@@ -1138,23 +1198,39 @@
   }
 
   async function doLogin() {
-    const key = document.getElementById('api-key-input').value.trim();
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
     const errEl = document.getElementById('login-error');
     const btn = document.getElementById('login-btn');
 
-    if (!key) { errEl.textContent = 'Please enter your access key.'; errEl.classList.add('visible'); return; }
+    if (!username || !password) {
+      errEl.textContent = 'Please enter your username and password.';
+      errEl.classList.add('visible'); return;
+    }
 
     btn.disabled = true;
     btn.textContent = 'Verifying...';
     errEl.classList.remove('visible');
 
-    const ok = await verifyKey(key);
-    if (ok) {
-      apiKey = key;
-      localStorage.setItem('vault_key', key);
-      showApp();
-    } else {
-      errEl.textContent = 'Invalid access key. Please try again.';
+    try {
+      const res = await fetch(`${API_URL}/vault-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.key) {
+        apiKey = data.key;
+        localStorage.setItem('vault_key', data.key);
+        showApp();
+      } else {
+        errEl.textContent = data.error || 'Invalid username or password.';
+        errEl.classList.add('visible');
+        btn.disabled = false;
+        btn.textContent = 'Enter VAULT →';
+      }
+    } catch {
+      errEl.textContent = 'Connection error. Please try again.';
       errEl.classList.add('visible');
       btn.disabled = false;
       btn.textContent = 'Enter VAULT →';
@@ -1166,7 +1242,8 @@
     apiKey = '';
     document.getElementById('app').classList.remove('visible');
     document.getElementById('login-screen').classList.remove('hidden');
-    document.getElementById('api-key-input').value = '';
+    document.getElementById('login-username').value = '';
+    document.getElementById('login-password').value = '';
     document.getElementById('login-error').classList.remove('visible');
     const btn = document.getElementById('login-btn');
     btn.disabled = false;

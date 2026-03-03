@@ -744,6 +744,39 @@ export default {
       });
     }
 
+    const url = new URL(request.url);
+
+    // ── /vault-login — unauthenticated, validates username + password ──────────
+    // Returns the SITE_API_KEY so vault.html can use it for subsequent calls.
+    // VAULT_USERNAME is a plain var; VAULT_PASSWORD must be a Cloudflare secret.
+    if (url.pathname === "/vault-login") {
+      try {
+        const { username, password } = await request.json();
+        const validUser = env.VAULT_USERNAME || "admin";
+        const validPass = env.VAULT_PASSWORD;
+        if (!validPass) {
+          return new Response(JSON.stringify({ error: "Login not configured — set VAULT_PASSWORD secret in Cloudflare." }), {
+            status: 500,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+        if (username === validUser && password === validPass) {
+          return new Response(JSON.stringify({ ok: true, key: env.SITE_API_KEY }), {
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+        return new Response(JSON.stringify({ error: "Invalid username or password." }), {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      } catch {
+        return new Response(JSON.stringify({ error: "Bad request" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
     // ── API key auth ──────────────────────────────────────────────────────────
     const apiKey = request.headers.get("X-API-Key");
     if (!apiKey || apiKey !== env.SITE_API_KEY) {
@@ -755,8 +788,6 @@ export default {
         },
       });
     }
-
-    const url = new URL(request.url);
 
     // ── /ingest route: chunk text → embed → store in Supabase for RAG ────────
     // Called from the admin panel (or curl) to add knowledge to ECHO's brain.
