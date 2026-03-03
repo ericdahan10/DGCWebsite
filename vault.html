@@ -222,8 +222,8 @@
 
     /* ── Page header ──────────────────────────────────────────────────────── */
     .page-eyebrow {
-      font-size: 10px; font-weight: 600; color: #4a8ac7;
-      letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px;
+      font-size: 10px; font-weight: 700; color: #3a7ab4;
+      letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 8px;
     }
 
     .page-title {
@@ -248,34 +248,67 @@
     }
 
     .card-title {
-      font-size: 12px; font-weight: 700;
-      color: #4a8ac7; letter-spacing: 0.1em; text-transform: uppercase;
-      margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 700;
+      color: #5a9ad4; letter-spacing: 0.12em; text-transform: uppercase;
+      margin-bottom: 22px; display: flex; align-items: center; gap: 10px;
+      padding-left: 12px; border-left: 2px solid #2d5a8f;
     }
 
-    /* ── Tab bar ──────────────────────────────────────────────────────────── */
+    /* ── Vault subtitle (login) ─────────────────────────────────────────────── */
+    .vault-subtitle {
+      font-size: 12px; font-weight: 500;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 0.3em; text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    /* ── Tab bar — visual card grid ─────────────────────────────────────────── */
     .tab-bar {
-      display: flex; gap: 4px; margin-bottom: 20px;
-      background: #1a1a1a; border: 1px solid #2a3d5c;
-      border-radius: 10px; padding: 4px;
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 12px; margin-bottom: 28px;
+      background: none; border: none; border-radius: 0; padding: 0;
     }
 
     .tab-btn {
-      flex: 1; padding: 8px 8px;
-      background: transparent; border: none;
-      border-radius: 7px; color: #666;
+      background: linear-gradient(160deg, #181e2c 0%, #131313 100%);
+      border: 1px solid #232d3d; border-radius: 14px;
+      padding: 22px 18px 18px; text-align: left;
+      cursor: pointer; transition: all 0.2s;
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
-      cursor: pointer; transition: all 0.15s;
-      display: flex; align-items: center; justify-content: center; gap: 4px;
+      display: flex; flex-direction: column; align-items: flex-start;
+      color: #556;
     }
 
-    .tab-btn:hover { color: #aaa; background: rgba(255,255,255,0.04); }
+    .tab-btn:hover {
+      border-color: #3a5070;
+      background: linear-gradient(160deg, #1c2438 0%, #161616 100%);
+      color: #889;
+    }
 
     .tab-btn.active {
-      background: linear-gradient(150deg, #262e3d 0%, #1e1e1e 60%);
-      color: #4a8ac7; border: 1px solid #2a3d5c;
+      border-color: #4a8ac7;
+      background: linear-gradient(160deg, #14243a 0%, #111820 100%);
+      box-shadow: 0 0 0 1px rgba(74,138,199,0.1), 0 8px 32px rgba(0,0,0,0.3);
+      color: #dde8f4;
     }
+
+    .tab-btn-icon {
+      margin-bottom: 14px; color: #374a60; transition: color 0.2s;
+    }
+    .tab-btn:hover .tab-btn-icon { color: #4a6a88; }
+    .tab-btn.active .tab-btn-icon { color: #4a8ac7; }
+
+    .tab-btn-label {
+      font-size: 13px; font-weight: 700; letter-spacing: -0.01em;
+      margin-bottom: 5px; color: inherit;
+    }
+
+    .tab-btn-desc {
+      font-size: 11px; color: #3a4a58; font-family: 'Inter', sans-serif;
+      line-height: 1.5; transition: color 0.2s;
+    }
+    .tab-btn:hover .tab-btn-desc { color: #506070; }
+    .tab-btn.active .tab-btn-desc { color: #607888; }
 
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
@@ -461,25 +494,33 @@
     .sources-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
     .source-card {
-      background: linear-gradient(150deg, #262e3d 0%, #1e1e1e 60%);
-      border: 1px solid #2a3d5c; border-radius: 12px; padding: 18px 20px;
-      transition: border-color 0.2s;
+      background: linear-gradient(150deg, #1e2636 0%, #191919 60%);
+      border: 1px solid #2a3d5c; border-radius: 14px; padding: 20px 22px;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
 
-    .source-card:hover { border-color: #3a6a9f; }
+    .source-card:hover { border-color: #3a6a9f; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
 
     .source-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
     .source-card-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 
-    .source-card-icon { font-size: 20px; flex-shrink: 0; }
+    .source-card-icon {
+      width: 38px; height: 38px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(74,138,199,0.08); border: 1px solid rgba(74,138,199,0.15);
+      border-radius: 10px; color: #4a8ac7;
+    }
 
     .source-card-name {
-      font-size: 14px; font-weight: 600; color: #e0e8f4;
+      font-size: 14px; font-weight: 600; color: #eaf0f8;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
-    .source-card-meta { font-size: 11px; color: #4a8ac7; font-weight: 700; margin-top: 3px; }
+    .source-card-meta {
+      font-size: 11px; color: #5a9ad4; font-weight: 600; margin-top: 4px;
+      font-family: 'Inter', sans-serif; letter-spacing: 0.02em;
+    }
 
     .btn-delete {
       padding: 6px 13px; border-radius: 6px; font-size: 11px; font-weight: 700;
@@ -681,7 +722,9 @@
       .sources-grid { grid-template-columns: 1fr; }
       .form-row { grid-template-columns: 1fr; }
       .app-content { padding: 24px 16px; }
-      .tab-btn { font-size: 10px; padding: 7px 4px; }
+      .tab-bar { grid-template-columns: repeat(2, 1fr); }
+      .tab-btn { padding: 16px 14px 14px; }
+      .tab-btn-label { font-size: 12px; }
       .source-confirm { flex-direction: column; align-items: flex-start; }
       .ticket-card { flex-direction: column; }
       .ticket-actions { flex-direction: row; align-items: center; width: 100%; justify-content: space-between; }
@@ -745,7 +788,8 @@
       </div>
 
       <div class="vault-title">VAULT</div>
-      <div class="vault-tag">DGC Knowledge Portal</div>
+      <div class="vault-subtitle">Knowledge Base</div>
+      <div class="vault-tag">DGC Intelligence Platform</div>
     </div>
 
     <!-- Form -->
@@ -806,37 +850,53 @@
           <p class="page-desc">Feed knowledge from any source into your AI chatbot. Ingested content is chunked, embedded, and retrieved automatically during conversations.</p>
         </div>
 
-        <!-- Tab bar -->
+        <!-- Tab bar — visual ingest type cards -->
         <div class="tab-bar">
-          <button class="tab-btn active" onclick="switchTab('text')" id="tab-text">Text</button>
-          <button class="tab-btn" onclick="switchTab('docs')" id="tab-docs">Files &amp; Docs</button>
-          <button class="tab-btn" onclick="switchTab('url')" id="tab-url">Website</button>
-          <button class="tab-btn" onclick="switchTab('youtube')" id="tab-youtube">YouTube</button>
+          <button class="tab-btn active" onclick="switchTab('docs')" id="tab-docs">
+            <div class="tab-btn-icon">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>
+              </svg>
+            </div>
+            <div class="tab-btn-label">Files &amp; Docs</div>
+            <div class="tab-btn-desc">PDF, Excel, CSV, Word</div>
+          </button>
+          <button class="tab-btn" onclick="switchTab('text')" id="tab-text">
+            <div class="tab-btn-icon">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="10" x2="3" y2="10"/>
+                <line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/>
+              </svg>
+            </div>
+            <div class="tab-btn-label">Paste Text</div>
+            <div class="tab-btn-desc">Copy-paste any content directly</div>
+          </button>
+          <button class="tab-btn" onclick="switchTab('url')" id="tab-url">
+            <div class="tab-btn-icon">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+            </div>
+            <div class="tab-btn-label">Website</div>
+            <div class="tab-btn-desc">Scrape any public webpage</div>
+          </button>
+          <button class="tab-btn" onclick="switchTab('youtube')" id="tab-youtube">
+            <div class="tab-btn-icon">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+            </div>
+            <div class="tab-btn-label">YouTube</div>
+            <div class="tab-btn-desc">Extract video transcripts</div>
+          </button>
         </div>
 
-        <!-- Text -->
-        <div class="tab-panel active card" id="panel-text">
-          <div class="card-title">Paste Text</div>
-          <div class="form-group">
-            <label class="form-label">Content</label>
-            <textarea class="form-textarea" id="text-content" placeholder="Paste any text — service descriptions, FAQs, policies, case studies, scripts..."></textarea>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Source Label <span style="color:#444;font-weight:400;text-transform:none">(optional)</span></label>
-              <input class="form-input" id="text-source" placeholder="e.g. services-faq, about-page" />
-            </div>
-            <div class="form-group" style="display:flex;align-items:flex-end;">
-              <button class="btn btn-primary" id="btn-text" onclick="ingestText()" style="width:100%;justify-content:center;">
-                Ingest
-              </button>
-            </div>
-          </div>
-          <div class="ingest-result" id="result-text"></div>
-        </div>
-
-        <!-- Files & Docs (TXT, CSV, PDF, XLSX) -->
-        <div class="tab-panel card" id="panel-docs">
+        <!-- Files & Docs (TXT, CSV, PDF, XLSX) — default active -->
+        <div class="tab-panel active card" id="panel-docs">
           <div class="card-title">Files &amp; Documents</div>
 
           <!-- File upload section -->
@@ -861,6 +921,25 @@
             </div>
           </div>
           <div class="ingest-result" id="result-file"></div>
+        </div>
+
+        <!-- Paste Text -->
+        <div class="tab-panel card" id="panel-text">
+          <div class="card-title">Paste Text</div>
+          <div class="form-group">
+            <label class="form-label">Content</label>
+            <textarea class="form-textarea" id="text-content" placeholder="Paste any text — service descriptions, FAQs, policies, case studies, scripts..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Source Label <span style="color:#445;font-weight:400;text-transform:none">(optional)</span></label>
+              <input class="form-input" id="text-source" placeholder="e.g. services-faq, about-page" />
+            </div>
+            <div class="form-group" style="display:flex;align-items:flex-end;">
+              <button class="btn btn-primary" id="btn-text" onclick="ingestText()" style="width:100%;justify-content:center;">Ingest</button>
+            </div>
+          </div>
+          <div class="ingest-result" id="result-text"></div>
         </div>
 
         <!-- Website URL -->
@@ -1318,10 +1397,13 @@
   let sourcesData = [];
 
   function sourceIcon(name) {
-    if (!name || name === 'manual') return '✏️';
-    if (name.includes('youtube') || name.startsWith('yt-')) return '▶️';
-    if (name.includes('website') || name.includes('url') || name.includes('http')) return '🌐';
-    return '📄';
+    if (!name || name === 'manual' || name === 'text')
+      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>`;
+    if (name.includes('youtube') || name.startsWith('yt-'))
+      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+    if (name.includes('website') || name.includes('url') || name.includes('http') || name.match(/^https?/))
+      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
   }
 
   function escapeHtml(str) {
@@ -1347,7 +1429,6 @@
     if (!sources.length) {
       container.innerHTML = `
         <div class="sources-empty">
-          <div class="sources-empty-icon">📭</div>
           <div class="sources-empty-title">No knowledge ingested yet</div>
           <div class="sources-empty-desc">Add content in the Knowledge Base tab — paste text, upload a file, scrape a website, or extract a YouTube transcript.</div>
         </div>`;
@@ -1366,7 +1447,7 @@
           <button class="btn-delete" id="src-delbtn-${i}" onclick="confirmDelete(${i})">Delete</button>
         </div>
         <div class="source-confirm" id="src-confirm-${i}">
-          <div class="source-confirm-msg">⚠️ Remove all ${s.count} chunk${s.count !== 1 ? 's' : ''}?<br>This cannot be undone.</div>
+          <div class="source-confirm-msg">Remove all ${s.count} chunk${s.count !== 1 ? 's' : ''}? This cannot be undone.</div>
           <div class="source-confirm-btns">
             <button class="btn-cancel" onclick="cancelDelete(${i})">Cancel</button>
             <button class="btn-confirm-delete" id="src-confirmbtn-${i}" onclick="executeDelete(${i})">Yes, delete</button>
