@@ -190,9 +190,13 @@ function buildHtmlEmail(body) {
 // Called via ctx.waitUntil so it never delays or blocks the email flow.
 // Requires SUPABASE_URL, SUPABASE_KEY, CLIENT_ID env vars on this Worker.
 async function saveLeadToSupabase(leadData, qualification, env) {
-  if (!env.SUPABASE_URL || !env.SUPABASE_KEY || !env.CLIENT_ID) return;
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY || !env.CLIENT_ID) {
+    const missing = { hasUrl: !!env.SUPABASE_URL, hasKey: !!env.SUPABASE_KEY, hasClientId: !!env.CLIENT_ID };
+    console.error("saveLeadToSupabase: missing env vars", missing);
+    return { ok: false, error: "missing env vars", missing };
+  }
   try {
-    await fetch(`${env.SUPABASE_URL}/rest/v1/leads`, {
+    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/leads`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -213,8 +217,17 @@ async function saveLeadToSupabase(leadData, qualification, env) {
         status:       "new",
       }),
     });
+    if (!res.ok) {
+      const body = await res.text();
+      console.error("saveLeadToSupabase: Supabase error", res.status, body);
+      return { ok: false, status: res.status, body };
+    } else {
+      console.log("saveLeadToSupabase: success", res.status);
+      return { ok: true, status: res.status };
+    }
   } catch (e) {
-    console.error("saveLeadToSupabase error:", e.message);
+    console.error("saveLeadToSupabase: fetch error", e.message);
+    return { ok: false, error: e.message };
   }
 }
 
@@ -319,7 +332,7 @@ export default {
 
       ctx.waitUntil(notifyOwner(leadData, qualification, env));
       ctx.waitUntil(sendProspectEmail(leadData, qualification, env));
-      ctx.waitUntil(saveLeadToSupabase(leadData, qualification, env)); // VAULT persistence — additive only
+      ctx.waitUntil(saveLeadToSupabase(leadData, qualification, env));
 
       return new Response(
         JSON.stringify({
