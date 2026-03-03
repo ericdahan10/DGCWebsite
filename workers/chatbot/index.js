@@ -817,10 +817,10 @@ export default {
           starters:      widgetCfg.starters       || null,
           worker_url:    WIDGET_DEFAULTS.worker_url,
           api_key:       WIDGET_DEFAULTS.api_key,
-        }), { headers: { "Content-Type": "application/json", ...openCorsHeaders() } });
+        }), { headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...openCorsHeaders() } });
       } catch (e) {
         return new Response(JSON.stringify({ ...WIDGET_DEFAULTS, client_id: slugOrId }),
-          { headers: { "Content-Type": "application/json", ...openCorsHeaders() } });
+          { headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...openCorsHeaders() } });
       }
     }
 
