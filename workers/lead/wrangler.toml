@@ -6,3 +6,6 @@ compatibility_date = "2025-02-24"
 GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxAf5dFOEDIBSi7Fum1oVYT06G5JXUMUhyljQDiU9EwvYoaKW2pR7rJy2yC4F5Rriz4/exec"
 FORMSPREE_URL = "https://formspree.io/f/mqedlzen"
 ADMIN_EMAIL = "admin@dahangroup.io"
+SUPABASE_URL = "https://nkwtcfcseocugtgwtgez.supabase.co"
+CLIENT_ID = "637d91b6-a077-4dbe-8e9d-b2c08d80e776"
+# Note: SUPABASE_KEY and SITE_API_KEY are secrets — set via Cloudflare dashboard only
