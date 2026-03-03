@@ -5,6 +5,7 @@ const ALLOWED_ORIGINS = new Set([
   "https://dahangroup.io",
   "https://www.dahangroup.io",
   "https://vault.dahangroup.io",
+  "https://dgcvault.onrender.com",
 ]);
 
 function assertRequiredEnv(env, keys) {
@@ -2223,13 +2224,14 @@ export default {
         );
       }
 
-      // ── [FIX] Return response with routing info ───────────────────────────
+      // ── Return response with routing info ────────────────────────────────
+      // Use openCorsHeaders so widget.js works when embedded on any client site.
       const responseBody = { ...data, _routing: routing };
 
       return new Response(JSON.stringify(responseBody), {
         headers: {
           "Content-Type": "application/json",
-          ...corsHeaders(request),
+          ...openCorsHeaders(),
         },
       });
     } catch (err) {
@@ -2240,7 +2242,7 @@ export default {
           status: 500,
           headers: {
             "Content-Type": "application/json",
-            ...corsHeaders(request),
+            ...openCorsHeaders(),
           },
         },
       );
