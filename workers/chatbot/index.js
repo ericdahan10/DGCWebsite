@@ -1378,6 +1378,107 @@ export default {
       }
     }
 
+    // ── /lead-capture: save contact form leads to Supabase ───────────────────
+    // Called in parallel with Formspree from the contact form on index.html.
+    // Emails are handled by Formspree — this endpoint is purely for VAULT persistence.
+    if (url.pathname === "/lead-capture") {
+      try {
+        const { name, email, phone, company, message, source } = await request.json();
+        await supabaseInsert("leads", {
+          client_id:     env.CLIENT_ID,
+          visitor_name:  name    || "",
+          visitor_email: email   || "",
+          visitor_phone: phone   || "",
+          company:       company || "",
+          source:        source  || "contact-form",
+          message:       message || "",
+          status:        "new",
+        }, env);
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      } catch (e) {
+        console.error("Lead capture error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /leads: list all leads for this client ───────────────────────────────
+    // Returns leads newest-first. Optional ?status= or ?score_label= filter.
+    // Used by the VAULT Leads page.
+    if (url.pathname === "/leads") {
+      try {
+        const statusFilter    = url.searchParams.get("status");
+        const scoreFilter     = url.searchParams.get("score_label");
+        let query = `${env.SUPABASE_URL}/rest/v1/leads?client_id=eq.${env.CLIENT_ID}&order=created_at.desc`;
+        if (statusFilter) query += `&status=eq.${encodeURIComponent(statusFilter)}`;
+        if (scoreFilter)  query += `&score_label=eq.${encodeURIComponent(scoreFilter)}`;
+        const res = await fetch(query, {
+          headers: {
+            apikey:        env.SUPABASE_KEY,
+            Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            Accept:        "application/json",
+          },
+        });
+        if (!res.ok) throw new Error(`Supabase leads fetch failed (${res.status})`);
+        const leads = await res.json();
+        return new Response(JSON.stringify({ leads }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      } catch (e) {
+        console.error("Leads list error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /leads-update: PATCH lead status, notes, or crm_pushed ───────────────
+    // Body: { lead_id, status?, notes?, crm_pushed? }
+    // Used by VAULT Leads page status dropdown and CRM push button.
+    if (url.pathname === "/leads-update") {
+      try {
+        const { lead_id, status, notes, crm_pushed } = await request.json();
+        if (!lead_id) {
+          return new Response(JSON.stringify({ error: "lead_id required" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+        const patch = { updated_at: new Date().toISOString() };
+        if (status     !== undefined) patch.status     = status;
+        if (notes      !== undefined) patch.notes      = notes;
+        if (crm_pushed !== undefined) patch.crm_pushed = crm_pushed;
+        const res = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/leads?id=eq.${lead_id}&client_id=eq.${env.CLIENT_ID}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              apikey:         env.SUPABASE_KEY,
+              Authorization:  `Bearer ${env.SUPABASE_KEY}`,
+              Prefer:         "return=minimal",
+            },
+            body: JSON.stringify(patch),
+          },
+        );
+        if (!res.ok) throw new Error(`Supabase leads update failed (${res.status})`);
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      } catch (e) {
+        console.error("Leads update error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
     // ── /escalation endpoint: proxy escalation form direct to Apps Script ──
     if (url.pathname === "/escalation") {
       // Tickets are now stored in Supabase (Google Sheets logging removed)

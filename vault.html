@@ -529,6 +529,78 @@
     .sources-empty-title { font-size: 15px; font-weight: 700; color: #888; margin-bottom: 6px; }
     .sources-empty-desc { font-size: 13px; color: #444; font-family: 'Inter', sans-serif; line-height: 1.6; }
 
+    /* ── Leads page ─────────────────────────────────────────────────────────── */
+    .leads-page-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap; margin-bottom: 4px;
+    }
+    .leads-export-all-btn {
+      padding: 8px 16px; background: transparent; border: 1px solid #2a3d5c;
+      border-radius: 8px; color: #88aacc; font-size: 12px; font-family: 'Inter', sans-serif;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap; margin-top: 4px;
+    }
+    .leads-export-all-btn:hover { border-color: #4a8ac7; color: #fff; background: rgba(74,138,199,0.08); }
+
+    .lead-card {
+      background: linear-gradient(150deg, #1e2636, #1c1c1c);
+      border: 1px solid #2a3d5c;
+      border-left: 3px solid #2a3d5c;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      display: flex; flex-direction: column; gap: 10px;
+      transition: border-color 0.15s;
+    }
+    .lead-card.score-hot  { border-left-color: #ef4444; }
+    .lead-card.score-warm { border-left-color: #f59e0b; }
+    .lead-card.score-cold { border-left-color: #4a8ac7; }
+    .lead-card.score-none { border-left-color: #3a4a5c; }
+
+    .lead-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .lead-name { font-size: 15px; font-weight: 600; color: #e8edf4; }
+
+    .score-badge {
+      font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px;
+      font-family: 'Inter', sans-serif; letter-spacing: 0.4px;
+    }
+    .score-badge.HOT  { background: rgba(239,68,68,0.15);  color: #ef4444; }
+    .score-badge.WARM { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .score-badge.COLD { background: rgba(74,138,199,0.15); color: #7db8e8; }
+
+    .lead-contact { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; color: #99aabb; font-family: 'Inter', sans-serif; }
+    .lead-contact a { color: #4a8ac7; text-decoration: none; }
+    .lead-contact a:hover { text-decoration: underline; }
+
+    .lead-meta { font-size: 12px; color: #556; font-family: 'Inter', sans-serif; }
+
+    .lead-message {
+      font-size: 12px; color: #778899; font-family: 'Inter', sans-serif;
+      background: rgba(255,255,255,0.03); border-radius: 6px; padding: 8px 10px;
+      line-height: 1.6; white-space: pre-wrap;
+    }
+    .lead-interests { font-size: 12px; color: #f59e0b; font-family: 'Inter', sans-serif; }
+
+    .lead-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+    .lead-status-select {
+      padding: 5px 10px; border-radius: 6px; border: 1px solid #2a3d5c;
+      background: #141a24; color: #ccc; font-size: 12px; font-family: 'Inter', sans-serif; cursor: pointer;
+    }
+    .lead-action-btns { display: flex; gap: 8px; margin-left: auto; }
+    .lead-btn {
+      padding: 5px 12px; border-radius: 6px; font-size: 12px; font-family: 'Inter', sans-serif;
+      cursor: pointer; border: 1px solid; transition: all 0.15s; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .lead-btn-email  { border-color: #2a3d5c; color: #88aacc; background: transparent; }
+    .lead-btn-email:hover { border-color: #4a8ac7; color: #fff; }
+    .lead-btn-crm    { border-color: #2a5c3d; color: #4ade80; background: transparent; }
+    .lead-btn-crm:hover { background: rgba(74,222,128,0.08); }
+    .lead-btn-crm.pushed { opacity: 0.5; cursor: default; pointer-events: none; }
+    .lead-btn-export { border-color: #2a3d5c; color: #778899; background: transparent; }
+    .lead-btn-export:hover { border-color: #4a8ac7; color: #ccc; }
+
+    .leads-empty { text-align: center; padding: 48px 20px; color: #556; font-family: 'Inter', sans-serif; font-size: 14px; }
+
     /* ── Tickets page ───────────────────────────────────────────────────────── */
     .ticket-filter-bar {
       display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
@@ -713,6 +785,7 @@
       <div class="nav-links">
         <button class="nav-link active" id="nav-knowledge" onclick="navigate('knowledge')">🧠 Knowledge Base</button>
         <button class="nav-link" id="nav-sources" onclick="navigate('sources')">📚 Sources</button>
+        <button class="nav-link" id="nav-leads" onclick="navigate('leads')">👤 Leads</button>
         <button class="nav-link" id="nav-tickets" onclick="navigate('tickets')">🎫 Tickets</button>
         <button class="nav-link" id="nav-analytics" onclick="navigate('analytics')">📊 Analytics</button>
       </div>
@@ -903,6 +976,31 @@
         </div>
       </div>
 
+      <!-- ── Leads Page ───────────────────────────────────────────────────── -->
+      <div class="page" id="page-leads">
+        <div class="leads-page-header">
+          <div>
+            <div class="page-eyebrow">VAULT · Intelligence</div>
+            <h1 class="page-title">Leads</h1>
+            <p class="page-desc">Everyone who reached out via chat or contact form. Push to CRM, export to TRACE, or track status.</p>
+          </div>
+          <button class="leads-export-all-btn" onclick="exportLeads(getFilteredLeads(), 'leads-export')">⬇ Export All</button>
+        </div>
+
+        <div class="ticket-filter-bar" style="margin-top:20px">
+          <button class="ticket-filter-btn active" id="lf-all"       onclick="filterLeads('all')">All</button>
+          <button class="ticket-filter-btn"        id="lf-HOT"       onclick="filterLeads('HOT')">🔥 HOT</button>
+          <button class="ticket-filter-btn"        id="lf-WARM"      onclick="filterLeads('WARM')">WARM</button>
+          <button class="ticket-filter-btn"        id="lf-COLD"      onclick="filterLeads('COLD')">COLD</button>
+          <button class="ticket-filter-btn"        id="lf-new"       onclick="filterLeads('new')">New</button>
+          <button class="ticket-filter-btn"        id="lf-contacted" onclick="filterLeads('contacted')">Contacted</button>
+        </div>
+
+        <div id="leads-container">
+          <div class="leads-empty">Loading leads...</div>
+        </div>
+      </div>
+
       <!-- ── Tickets Page ─────────────────────────────────────────────────── -->
       <div class="page" id="page-tickets">
         <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -1011,6 +1109,7 @@
     document.getElementById(`nav-${page}`).classList.add('active');
     if (page === 'analytics') loadStats();
     if (page === 'sources') loadSources();
+    if (page === 'leads') loadLeads();
     if (page === 'tickets') loadTickets();
   }
 
@@ -1334,6 +1433,155 @@
         const el = document.getElementById(`stat-${id}`); if (el) el.textContent = '—';
       });
     }
+  }
+
+  // ── Leads ────────────────────────────────────────────────────────────────────
+  let allLeads = [];
+  let activeLeadFilter = 'all';
+
+  async function loadLeads() {
+    document.getElementById('leads-container').innerHTML =
+      '<div class="leads-empty">Loading leads...</div>';
+    try {
+      const data = await callApi('/leads', {});
+      allLeads = data.leads || [];
+      renderLeads();
+    } catch (e) {
+      document.getElementById('leads-container').innerHTML =
+        `<div class="leads-empty">Error loading leads: ${e.message}</div>`;
+    }
+  }
+
+  function getFilteredLeads() {
+    if (activeLeadFilter === 'all') return allLeads;
+    // Score filters: HOT / WARM / COLD
+    if (['HOT','WARM','COLD'].includes(activeLeadFilter))
+      return allLeads.filter(l => (l.score_label || '').toUpperCase() === activeLeadFilter);
+    // Status filters: new / contacted / qualified / converted
+    return allLeads.filter(l => l.status === activeLeadFilter);
+  }
+
+  function filterLeads(filter) {
+    activeLeadFilter = filter;
+    document.querySelectorAll('.ticket-filter-btn[id^="lf-"]').forEach(btn => btn.classList.remove('active'));
+    const btn = document.getElementById(`lf-${filter}`);
+    if (btn) btn.classList.add('active');
+    renderLeads();
+  }
+
+  function renderLeads() {
+    const container = document.getElementById('leads-container');
+    const filtered = getFilteredLeads();
+    if (!filtered.length) {
+      container.innerHTML = '<div class="leads-empty">No leads found.' +
+        (allLeads.length ? ' Try a different filter.' : ' Leads appear here once someone reaches out via chat or the contact form.') +
+        '</div>';
+      return;
+    }
+
+    container.innerHTML = filtered.map((l, i) => {
+      const scoreLabel = (l.score_label || '').toUpperCase();
+      const scoreClass = scoreLabel === 'HOT' ? 'score-hot' : scoreLabel === 'WARM' ? 'score-warm' : scoreLabel === 'COLD' ? 'score-cold' : 'score-none';
+      const scoreBadge = scoreLabel
+        ? `<span class="score-badge ${scoreLabel}">${scoreLabel}${l.score ? ' · ' + l.score : ''}</span>`
+        : '';
+      const crmBadge = l.crm_pushed ? '<span class="ticket-crm-pushed">✓ In CRM</span>' : '';
+      const dateStr = l.created_at ? new Date(l.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+      const sourceStr = l.source === 'contact-form' ? 'Contact Form' : l.source === 'chatbot' ? 'Chat Widget' : (l.source || 'Unknown');
+      const emailHref = `mailto:${l.visitor_email || ''}?subject=Following up — Dahan Group Consulting`;
+
+      return `<div class="lead-card ${scoreClass}" id="lead-card-${i}">
+        <div class="lead-top">
+          <span class="lead-name">${l.visitor_name || 'Unknown'}</span>
+          ${scoreBadge}
+          ${crmBadge}
+        </div>
+        <div class="lead-contact">
+          ${l.visitor_email ? `<a href="${emailHref}">${l.visitor_email}</a>` : ''}
+          ${l.visitor_phone ? `<span>${l.visitor_phone}</span>` : ''}
+          ${l.company      ? `<span>${l.company}</span>` : ''}
+        </div>
+        <div class="lead-meta">via ${sourceStr}${dateStr ? ' · ' + dateStr : ''}</div>
+        ${l.message   ? `<div class="lead-message">${l.message.slice(0, 240)}${l.message.length > 240 ? '…' : ''}</div>` : ''}
+        ${l.interests ? `<div class="lead-interests">🎯 ${l.interests}</div>` : ''}
+        <div class="lead-actions">
+          <select class="lead-status-select" onchange="updateLeadStatus('${l.id}', this.value, ${i})">
+            <option value="new"       ${l.status==='new'       ? 'selected':''}>New</option>
+            <option value="contacted" ${l.status==='contacted' ? 'selected':''}>Contacted</option>
+            <option value="qualified" ${l.status==='qualified' ? 'selected':''}>Qualified</option>
+            <option value="converted" ${l.status==='converted' ? 'selected':''}>Converted</option>
+          </select>
+          <div class="lead-action-btns">
+            <a href="${emailHref}" class="lead-btn lead-btn-email">✉ Email</a>
+            <button class="lead-btn lead-btn-crm${l.crm_pushed ? ' pushed' : ''}"
+              onclick="pushLeadToCrm('${l.id}', ${i})"
+              ${l.crm_pushed ? 'disabled' : ''}>⬆ CRM</button>
+            <button class="lead-btn lead-btn-export"
+              onclick="exportLeads([allLeads[${allLeads.indexOf(l)}]], '${(l.visitor_name||'lead').replace(/[^a-z0-9]/gi,'-').toLowerCase()}')">⬇</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function updateLeadStatus(leadId, newStatus, idx) {
+    try {
+      await callApi('/leads-update', { lead_id: leadId, status: newStatus });
+      allLeads = allLeads.map(l => l.id === leadId ? { ...l, status: newStatus } : l);
+    } catch (e) {
+      showToast('Failed to update status: ' + e.message, 'error');
+    }
+  }
+
+  async function pushLeadToCrm(leadId, idx) {
+    const lead = allLeads.find(l => l.id === leadId);
+    if (!lead || lead.crm_pushed) return;
+    try {
+      await callApi('/ticket-crm-push', {
+        ticket_number: 'LEAD-' + leadId.slice(0,8),
+        visitor_name:  lead.visitor_name  || '',
+        visitor_email: lead.visitor_email || '',
+        description:   [lead.message, lead.interests ? 'Interests: ' + lead.interests : ''].filter(Boolean).join('\n'),
+        urgency:       lead.score_label === 'HOT' ? 'high' : lead.score_label === 'WARM' ? 'medium' : 'low',
+      });
+      await callApi('/leads-update', { lead_id: leadId, crm_pushed: true });
+      allLeads = allLeads.map(l => l.id === leadId ? { ...l, crm_pushed: true } : l);
+      renderLeads();
+      showToast('Lead pushed to CRM', 'success');
+    } catch (e) {
+      showToast('CRM push failed: ' + e.message, 'error');
+    }
+  }
+
+  // exportLeads — shared by bulk (Export All) and per-card (⬇) buttons
+  // leadsArray: array of lead objects to export
+  // filenameBase: base filename without extension or date
+  function exportLeads(leadsArray, filenameBase) {
+    if (!leadsArray.length) { showToast('No leads to export', 'error'); return; }
+    const date = new Date().toISOString().slice(0,10);
+    const headers = ['first_name','last_name','email','company','website','linkedin_url','persona','notes'];
+    const rows = leadsArray.map(l => {
+      const parts = (l.visitor_name || '').trim().split(/\s+/);
+      const first = parts[0] || '';
+      const last  = parts.slice(1).join(' ') || '';
+      const notesParts = [
+        l.score_label ? `Score: ${l.score_label}${l.score ? ' ' + l.score : ''}` : '',
+        l.source      ? `Source: ${l.source}`     : '',
+        l.interests   ? `Interests: ${l.interests}` : '',
+        l.message     ? `Message: ${l.message}`   : '',
+      ].filter(Boolean);
+      const csvEsc = v => `"${String(v||'').replace(/"/g,'""')}"`;
+      return [first, last, l.visitor_email||'', l.company||'', '', '', '', notesParts.join(' | ')].map(csvEsc).join(',');
+    });
+    const csv = [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `${filenameBase}-${date}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${leadsArray.length} lead${leadsArray.length > 1 ? 's' : ''}`, 'success');
   }
 
   // ── Tickets ──────────────────────────────────────────────────────────────────

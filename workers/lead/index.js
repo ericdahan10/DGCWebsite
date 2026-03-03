@@ -186,6 +186,38 @@ function buildHtmlEmail(body) {
 </html>`;
 }
 
+// ── Save lead to Supabase — additive, non-blocking ───────────────────────────
+// Called via ctx.waitUntil so it never delays or blocks the email flow.
+// Requires SUPABASE_URL, SUPABASE_KEY, CLIENT_ID env vars on this Worker.
+async function saveLeadToSupabase(leadData, qualification, env) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY || !env.CLIENT_ID) return;
+  try {
+    await fetch(`${env.SUPABASE_URL}/rest/v1/leads`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: env.SUPABASE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_KEY}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        client_id:    env.CLIENT_ID,
+        visitor_name: leadData.name  || "",
+        visitor_email: leadData.email || "",
+        visitor_phone: leadData.phone || "",
+        source:       leadData.source || "chatbot",
+        message:      leadData.conversation || leadData.message || "",
+        score:        qualification?.score     ?? null,
+        score_label:  qualification?.category  ?? null,
+        interests:    (qualification?.interests || []).join(", "),
+        status:       "new",
+      }),
+    });
+  } catch (e) {
+    console.error("saveLeadToSupabase error:", e.message);
+  }
+}
+
 async function sendProspectEmail(leadData, qualification, env) {
   try {
     const emailBody =
@@ -287,6 +319,7 @@ export default {
 
       ctx.waitUntil(notifyOwner(leadData, qualification, env));
       ctx.waitUntil(sendProspectEmail(leadData, qualification, env));
+      ctx.waitUntil(saveLeadToSupabase(leadData, qualification, env)); // VAULT persistence — additive only
 
       return new Response(
         JSON.stringify({

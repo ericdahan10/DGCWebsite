@@ -6302,6 +6302,7 @@
             .join(", ");
 
           if (email) {
+            // Lead Worker — qualification + email (primary flow, unchanged)
             fetch("https://dgc-lead-worker.ericdahan10.workers.dev", {
               method: "POST",
               headers: {
@@ -6322,6 +6323,20 @@
                   (message || "N/A"),
               }),
             }).catch((e) => console.error("Lead worker error:", e));
+
+            // VAULT persistence — fire-and-forget, does not affect email flow
+            fetch(DGC_CHAT_API + "/lead-capture", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
+              body: JSON.stringify({
+                name: name,
+                email: email,
+                phone: phone,
+                company: company,
+                message: (services ? "Services: " + services + "\n" : "") + (message || ""),
+                source: "contact-form",
+              }),
+            }).catch(() => {});
           }
         });
       // ===== End Contact Form =====
