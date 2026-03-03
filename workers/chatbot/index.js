@@ -1193,6 +1193,67 @@ export default {
       }
     }
 
+    // ── /source-context-update: update the context prefix on all chunks for a source
+    // Body: { source, context }  — context can be "" to clear it
+    // Fetches every chunk for the source, strips the old [Context: ...] prefix,
+    // prepends the new one (if any), and PATCHes each row back.
+    // This is how admins edit context after ingest without re-ingesting.
+    if (url.pathname === "/source-context-update") {
+      try {
+        const { source, context } = await request.json();
+        if (!source) {
+          return new Response(JSON.stringify({ error: "source field required" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+
+        // Fetch all chunks for this source
+        const fetchRes = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=id,content&client_id=eq.${env.CLIENT_ID}&source=eq.${encodeURIComponent(source)}`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        if (!fetchRes.ok) throw new Error("Failed to fetch chunks for source");
+        const chunks = await fetchRes.json();
+
+        const newPrefix = context && context.trim()
+          ? `[Context: ${context.trim()}]\n\n`
+          : "";
+        const ctxRegex = /^\[Context:\s*[\s\S]*?\]\n\n/;
+
+        // Update each chunk: strip old prefix, add new one
+        let updated = 0;
+        await Promise.all(chunks.map(async (chunk) => {
+          const stripped = (chunk.content || "").replace(ctxRegex, "");
+          const newContent = newPrefix + stripped;
+          const patchRes = await fetch(
+            `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?id=eq.${chunk.id}`,
+            {
+              method: "PATCH",
+              headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                "Content-Type": "application/json",
+                Prefer: "return=minimal",
+              },
+              body: JSON.stringify({ content: newContent }),
+            },
+          );
+          if (patchRes.ok) updated++;
+        }));
+
+        return new Response(JSON.stringify({ updated }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      } catch (e) {
+        console.error("Source-context-update error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
     // ── /delete-source: remove all chunks for a given source label ────────────
     // Body: { source: "services-faq" }
     // Deletes all knowledge_chunks rows matching client_id + source.

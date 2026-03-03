@@ -784,6 +784,46 @@
     .btn-confirm-delete:hover { opacity: 0.85; }
     .btn-confirm-delete:disabled { opacity: 0.4; cursor: not-allowed; }
 
+    .source-context-display {
+      font-size: 12px; color: #7a9ab8; margin: 8px 0 4px;
+      padding: 6px 10px; background: rgba(74,138,199,0.06);
+      border-radius: 6px; border-left: 2px solid #2d5a8f;
+      font-family: 'Inter', sans-serif; line-height: 1.5;
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    }
+
+    .source-context-text { flex: 1; }
+
+    .source-context-edit-btn {
+      background: none; border: none; cursor: pointer; color: #3a6a9f;
+      font-size: 11px; font-weight: 600; font-family: 'Space Grotesk', sans-serif;
+      padding: 0; flex-shrink: 0; opacity: 0.7; white-space: nowrap;
+    }
+    .source-context-edit-btn:hover { opacity: 1; color: #4a8ac7; }
+
+    .source-context-add-btn {
+      background: none; border: none; cursor: pointer; color: #3a6a9f;
+      font-size: 11px; font-weight: 600; font-family: 'Space Grotesk', sans-serif;
+      padding: 4px 0 0; display: block; opacity: 0.6;
+    }
+    .source-context-add-btn:hover { opacity: 1; color: #4a8ac7; }
+
+    .source-context-editor {
+      margin: 8px 0 4px; display: none;
+    }
+    .source-context-editor.visible { display: block; }
+
+    .source-context-editor textarea {
+      width: 100%; background: #0e1420; border: 1px solid #2d5a8f;
+      border-radius: 6px; color: #d4e2f0; font-size: 12px;
+      font-family: 'Inter', sans-serif; padding: 8px 10px;
+      resize: vertical; min-height: 56px; box-sizing: border-box;
+    }
+
+    .source-context-editor-btns {
+      display: flex; gap: 8px; margin-top: 6px;
+    }
+
     .sources-empty {
       text-align: center; padding: 56px 24px;
       background: linear-gradient(150deg, #1e2533 0%, #181818 60%);
@@ -1906,7 +1946,23 @@
           </div>
           <button class="btn-delete" id="src-delbtn-${i}" onclick="confirmDelete(${i})">Delete</button>
         </div>
-        ${s.description ? `<div style="font-size:12px;color:#7a9ab8;margin:8px 0 4px;padding:6px 10px;background:rgba(74,138,199,0.06);border-radius:6px;border-left:2px solid #2d5a8f;font-family:'Inter',sans-serif;line-height:1.5">📌 ${escapeHtml(s.description)}</div>` : ''}
+
+        ${s.description
+          ? `<div class="source-context-display" id="src-ctx-display-${i}">
+               <span class="source-context-text">📌 ${escapeHtml(s.description)}</span>
+               <button class="source-context-edit-btn" onclick="openContextEditor(${i})">Edit</button>
+             </div>`
+          : `<button class="source-context-add-btn" id="src-ctx-add-${i}" onclick="openContextEditor(${i})">+ Add context for ECHO</button>`
+        }
+
+        <div class="source-context-editor" id="src-ctx-editor-${i}">
+          <textarea id="src-ctx-input-${i}" placeholder="Tell ECHO what this source is and how to use it — e.g. 'This is our services page. Reference this when visitors ask what we offer.'">${escapeHtml(s.description || '')}</textarea>
+          <div class="source-context-editor-btns">
+            <button class="btn btn-primary" style="font-size:12px;padding:6px 16px" onclick="saveContext(${i})">Save</button>
+            <button class="btn btn-ghost"   style="font-size:12px;padding:6px 16px" onclick="closeContextEditor(${i})">Cancel</button>
+          </div>
+        </div>
+
         <div class="source-confirm" id="src-confirm-${i}">
           <div class="source-confirm-msg">Remove all ${s.count} chunk${s.count !== 1 ? 's' : ''}? This cannot be undone.</div>
           <div class="source-confirm-btns">
@@ -1940,6 +1996,44 @@
       showToast(e.message, 'error');
       btn.disabled = false;
       btn.textContent = 'Yes, delete';
+    }
+  }
+
+  // ── Source context inline editor ─────────────────────────────────────────────
+  function openContextEditor(i) {
+    // Hide the display / add button, show editor
+    const display = document.getElementById(`src-ctx-display-${i}`);
+    const addBtn  = document.getElementById(`src-ctx-add-${i}`);
+    if (display) display.style.display = 'none';
+    if (addBtn)  addBtn.style.display  = 'none';
+    document.getElementById(`src-ctx-editor-${i}`).classList.add('visible');
+    document.getElementById(`src-ctx-input-${i}`).focus();
+  }
+
+  function closeContextEditor(i) {
+    document.getElementById(`src-ctx-editor-${i}`).classList.remove('visible');
+    const display = document.getElementById(`src-ctx-display-${i}`);
+    const addBtn  = document.getElementById(`src-ctx-add-${i}`);
+    if (display) display.style.display = '';
+    if (addBtn)  addBtn.style.display  = '';
+  }
+
+  async function saveContext(i) {
+    const source  = sourcesData[i].source;
+    const context = document.getElementById(`src-ctx-input-${i}`).value.trim();
+    const saveBtn = document.querySelector(`#src-ctx-editor-${i} .btn-primary`);
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    try {
+      const { updated } = await callApi('/source-context-update', { source, context });
+      showToast(`Context updated across ${updated} chunk${updated !== 1 ? 's' : ''}`, 'success');
+      // Update local data and re-render so the card reflects the new context
+      sourcesData[i].description = context || null;
+      renderSources(sourcesData);
+    } catch (e) {
+      showToast('Failed to save context: ' + e.message, 'error');
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
     }
   }
 
