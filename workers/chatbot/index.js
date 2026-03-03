@@ -885,19 +885,25 @@ export default {
         if (body.notification_webhook !== undefined) patch.notification_webhook = body.notification_webhook;
         if (body.crm_config           !== undefined) patch.crm_config           = body.crm_config;
         patch.updated_at = new Date().toISOString();
-        await fetch(
+        // Use service_role key for writes so RLS doesn't block the PATCH
+        const writeKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_KEY;
+        const sbRes = await fetch(
           `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${clientId}`,
           {
             method: "PATCH",
             headers: {
-              apikey: env.SUPABASE_KEY,
-              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+              apikey: writeKey,
+              Authorization: `Bearer ${writeKey}`,
               "Content-Type": "application/json",
               Prefer: "return=minimal",
             },
             body: JSON.stringify(patch),
           },
         );
+        if (!sbRes.ok) {
+          const errText = await sbRes.text();
+          return new Response(JSON.stringify({ error: `Supabase error ${sbRes.status}: ${errText}` }), { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+        }
         return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
