@@ -513,13 +513,17 @@ async function saveConversationTurn(conversationId, userMsg, assistantMsg, env) 
 // Fails silently — Apps Script remains the primary record, Supabase powers VAULT.
 async function saveTicketToSupabase(payload, env) {
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return;
-  const desc = payload.issueSummary || payload.issue_summary || "";
+  const desc = payload.issueSummary || payload.issue_summary || "Support request from chat widget";
+  const name  = payload.clientName  || payload.visitor_name  || payload.name  || "";
+  const email = payload.clientEmail || payload.visitor_email || payload.email || "";
+  const phone = payload.clientPhone || payload.visitor_phone || payload.phone || "";
+  const ticketNum = payload.ticketId || payload.ticket_id || `TKT-${Date.now()}`;
   await supabaseInsert("tickets", {
-    client_id:     env.CLIENT_ID,
-    ticket_number: payload.ticketId || payload.ticket_id || "",
-    visitor_name:  payload.clientName  || payload.visitor_name  || "",
-    visitor_email: payload.clientEmail || payload.visitor_email || "",
-    visitor_phone: payload.clientPhone || payload.visitor_phone || "",
+    client_id:     payload.client_id || env.CLIENT_ID,
+    ticket_number: ticketNum,
+    visitor_name:  name,
+    visitor_email: email,
+    visitor_phone: phone,
     urgency:       (payload.urgency || "medium").toLowerCase(),
     subject:       desc.slice(0, 120),
     description:   desc,
@@ -1017,7 +1021,7 @@ export default {
     // ── /ingest-url: fetch a webpage, strip HTML, and ingest as knowledge ────
     if (url.pathname === "/ingest-url") {
       try {
-        const { url: pageUrl, source = "website", notes } = await request.json();
+        const { url: pageUrl, source = "website", notes, client_id = env.CLIENT_ID } = await request.json();
         if (!pageUrl) {
           return new Response(JSON.stringify({ error: "url field required" }), {
             status: 400,
@@ -1045,7 +1049,7 @@ export default {
         if (text.length < 50) {
           throw new Error("Page returned too little text. The site may block scrapers — try pasting the content directly in the Text tab instead.");
         }
-        const stored = await ingestText(text, source, env.CLIENT_ID, env, notes);
+        const stored = await ingestText(text, source, client_id, env, notes);
         return new Response(
           JSON.stringify({ success: true, chunks_stored: stored, url: pageUrl }),
           { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
@@ -1062,7 +1066,7 @@ export default {
     // ── /ingest-youtube: extract transcript from a YouTube video and ingest ──
     if (url.pathname === "/ingest-youtube") {
       try {
-        const { url: ytUrl, notes } = await request.json();
+        const { url: ytUrl, notes, client_id = env.CLIENT_ID } = await request.json();
         if (!ytUrl) {
           return new Response(JSON.stringify({ error: "url field required" }), {
             status: 400,
@@ -1114,7 +1118,7 @@ export default {
         }
 
         const source = `youtube-${videoId}`;
-        const stored = await ingestText(transcript, source, env.CLIENT_ID, env, notes);
+        const stored = await ingestText(transcript, source, client_id, env, notes);
         return new Response(
           JSON.stringify({ success: true, chunks_stored: stored, title }),
           { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
@@ -1131,7 +1135,7 @@ export default {
     // ── /ingest-sheet: fetch a public Google Sheet as CSV and ingest ──────────
     if (url.pathname === "/ingest-sheet") {
       try {
-        const { url: sheetUrl, source = "google-sheets", notes } = await request.json();
+        const { url: sheetUrl, source = "google-sheets", notes, client_id = env.CLIENT_ID } = await request.json();
         if (!sheetUrl) {
           return new Response(JSON.stringify({ error: "url field required" }), {
             status: 400,
@@ -1166,7 +1170,7 @@ export default {
         });
         const text = rows.join("\n");
 
-        const stored = await ingestText(text, source, env.CLIENT_ID, env, notes);
+        const stored = await ingestText(text, source, client_id, env, notes);
         return new Response(
           JSON.stringify({ success: true, chunks_stored: stored }),
           { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
@@ -1183,7 +1187,8 @@ export default {
     // ── /stats: full analytics snapshot — chunks, conversations, leads, tickets ─
     if (url.pathname === "/stats") {
       try {
-        const clientId = env.CLIENT_ID;
+        const { client_id = env.CLIENT_ID } = await request.json().catch(() => ({}));
+        const clientId = client_id;
 
         // Count knowledge chunks for this client
         const chunksCount = await supabaseCount("knowledge_chunks", "client_id", clientId, env);
@@ -1278,7 +1283,8 @@ export default {
     // ── /analytics-conversations: list recent conversations with visitor info ───
     if (url.pathname === "/analytics-conversations") {
       try {
-        const clientId = env.CLIENT_ID;
+        const { client_id = env.CLIENT_ID } = await request.json().catch(() => ({}));
+        const clientId = client_id;
         const limit = parseInt(url.searchParams.get("limit") || "50", 10);
 
         // Fetch recent conversations newest-first
@@ -1393,7 +1399,7 @@ export default {
     // This is how admins edit context after ingest without re-ingesting.
     if (url.pathname === "/source-context-update") {
       try {
-        const { source, context } = await request.json();
+        const { source, context, client_id = env.CLIENT_ID } = await request.json();
         if (!source) {
           return new Response(JSON.stringify({ error: "source field required" }), {
             status: 400,
@@ -1403,7 +1409,7 @@ export default {
 
         // Fetch all chunks for this source
         const fetchRes = await fetch(
-          `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=id,content&client_id=eq.${env.CLIENT_ID}&source=eq.${encodeURIComponent(source)}`,
+          `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=id,content&client_id=eq.${client_id}&source=eq.${encodeURIComponent(source)}`,
           { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
         );
         if (!fetchRes.ok) throw new Error("Failed to fetch chunks for source");
@@ -1452,7 +1458,7 @@ export default {
     // Deletes all knowledge_chunks rows matching client_id + source.
     if (url.pathname === "/delete-source") {
       try {
-        const { source } = await request.json();
+        const { source, client_id = env.CLIENT_ID } = await request.json();
         if (!source) {
           return new Response(JSON.stringify({ error: "source field required" }), {
             status: 400,
@@ -1460,7 +1466,7 @@ export default {
           });
         }
         const res = await fetch(
-          `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?client_id=eq.${env.CLIENT_ID}&source=eq.${encodeURIComponent(source)}`,
+          `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?client_id=eq.${client_id}&source=eq.${encodeURIComponent(source)}`,
           {
             method: "DELETE",
             headers: {
@@ -1621,8 +1627,9 @@ export default {
     // Used by the VAULT Tickets page to render the ticket list.
     if (url.pathname === "/tickets") {
       try {
+        const { client_id = env.CLIENT_ID } = await request.json().catch(() => ({}));
         const status = url.searchParams.get("status");
-        let query = `${env.SUPABASE_URL}/rest/v1/tickets?client_id=eq.${env.CLIENT_ID}&order=created_at.desc`;
+        let query = `${env.SUPABASE_URL}/rest/v1/tickets?client_id=eq.${client_id}&order=created_at.desc`;
         if (status) query += `&status=eq.${encodeURIComponent(status)}`;
         const res = await fetch(query, {
           headers: {
@@ -1653,7 +1660,7 @@ export default {
     // Used by the VAULT Tickets page status dropdown.
     if (url.pathname === "/tickets-update") {
       try {
-        const { ticket_number, status, notes } = await request.json();
+        const { ticket_number, status, notes, client_id = env.CLIENT_ID } = await request.json();
         if (!ticket_number) {
           return new Response(JSON.stringify({ error: "ticket_number required" }), {
             status: 400,
@@ -1666,7 +1673,7 @@ export default {
         patch.updated_at = new Date().toISOString();
 
         const res = await fetch(
-          `${env.SUPABASE_URL}/rest/v1/tickets?client_id=eq.${env.CLIENT_ID}&ticket_number=eq.${encodeURIComponent(ticket_number)}`,
+          `${env.SUPABASE_URL}/rest/v1/tickets?client_id=eq.${client_id}&ticket_number=eq.${encodeURIComponent(ticket_number)}`,
           {
             method: "PATCH",
             headers: {
@@ -1877,9 +1884,10 @@ export default {
     // Used by the VAULT Leads page.
     if (url.pathname === "/leads") {
       try {
+        const { client_id = env.CLIENT_ID } = await request.json().catch(() => ({}));
         const statusFilter    = url.searchParams.get("status");
         const scoreFilter     = url.searchParams.get("score_label");
-        let query = `${env.SUPABASE_URL}/rest/v1/leads?client_id=eq.${env.CLIENT_ID}&order=created_at.desc`;
+        let query = `${env.SUPABASE_URL}/rest/v1/leads?client_id=eq.${client_id}&order=created_at.desc`;
         if (statusFilter) query += `&status=eq.${encodeURIComponent(statusFilter)}`;
         if (scoreFilter)  query += `&score_label=eq.${encodeURIComponent(scoreFilter)}`;
         const res = await fetch(query, {
@@ -1908,7 +1916,7 @@ export default {
     // Used by VAULT Leads page status dropdown and CRM push button.
     if (url.pathname === "/leads-update") {
       try {
-        const { lead_id, status, notes, crm_pushed } = await request.json();
+        const { lead_id, status, notes, crm_pushed, client_id = env.CLIENT_ID } = await request.json();
         if (!lead_id) {
           return new Response(JSON.stringify({ error: "lead_id required" }), {
             status: 400,
@@ -1920,7 +1928,7 @@ export default {
         if (notes      !== undefined) patch.notes      = notes;
         if (crm_pushed !== undefined) patch.crm_pushed = crm_pushed;
         const res = await fetch(
-          `${env.SUPABASE_URL}/rest/v1/leads?id=eq.${lead_id}&client_id=eq.${env.CLIENT_ID}`,
+          `${env.SUPABASE_URL}/rest/v1/leads?id=eq.${lead_id}&client_id=eq.${client_id}`,
           {
             method: "PATCH",
             headers: {
