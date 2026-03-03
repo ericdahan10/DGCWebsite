@@ -800,6 +800,7 @@ export default {
         brand_line:    "AI Assistant",
         greeting:      "Hi! I'm ECHO. How can I help you today?",
         primary_color: "#2d5a8f",
+        theme:         "light",
         worker_url:    "https://dgc-chat-api.ericdahan10.workers.dev",
         api_key:       env.SITE_API_KEY || "",
       };
@@ -812,6 +813,7 @@ export default {
           brand_line:    widgetCfg.brand_line     || WIDGET_DEFAULTS.brand_line,
           greeting:      widgetCfg.greeting       || WIDGET_DEFAULTS.greeting,
           primary_color: widgetCfg.primary_color  || WIDGET_DEFAULTS.primary_color,
+          theme:         widgetCfg.theme          || WIDGET_DEFAULTS.theme,
           starters:      widgetCfg.starters       || null,
           worker_url:    WIDGET_DEFAULTS.worker_url,
           api_key:       WIDGET_DEFAULTS.api_key,
