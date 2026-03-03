@@ -847,10 +847,6 @@
     .lead-interests { font-size: 12px; color: #f59e0b; font-family: 'Inter', sans-serif; }
 
     .lead-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
-    .lead-status-select {
-      padding: 5px 10px; border-radius: 6px; border: 1px solid #2a3d5c;
-      background: #141a24; color: #e0e8f4; font-size: 12px; font-family: 'Inter', sans-serif; cursor: pointer;
-    }
     .lead-action-btns { display: flex; gap: 8px; margin-left: auto; }
     .lead-btn {
       padding: 5px 12px; border-radius: 6px; font-size: 12px; font-family: 'Inter', sans-serif;
@@ -1428,18 +1424,16 @@
           <div>
             <div class="page-eyebrow">VAULT · Intelligence</div>
             <h1 class="page-title">Leads</h1>
-            <p class="page-desc">Everyone who reached out via chat or contact form. Push to CRM, export to TRACE, or track status.</p>
+            <p class="page-desc">Everyone who reached out via chat or contact form. Export to TRACE for enrichment and email sequences, or push directly to CRM.</p>
           </div>
           <button class="leads-export-all-btn" onclick="exportLeads(getFilteredLeads(), 'leads-export')">Export All</button>
         </div>
 
         <div class="ticket-filter-bar" style="margin-top:20px">
-          <button class="ticket-filter-btn active" id="lf-all"       onclick="filterLeads('all')">All</button>
-          <button class="ticket-filter-btn"        id="lf-HOT"       onclick="filterLeads('HOT')">HOT</button>
-          <button class="ticket-filter-btn"        id="lf-WARM"      onclick="filterLeads('WARM')">WARM</button>
-          <button class="ticket-filter-btn"        id="lf-COLD"      onclick="filterLeads('COLD')">COLD</button>
-          <button class="ticket-filter-btn"        id="lf-new"       onclick="filterLeads('new')">New</button>
-          <button class="ticket-filter-btn"        id="lf-contacted" onclick="filterLeads('contacted')">Contacted</button>
+          <button class="ticket-filter-btn active" id="lf-all"  onclick="filterLeads('all')">All</button>
+          <button class="ticket-filter-btn"        id="lf-HOT"  onclick="filterLeads('HOT')">HOT</button>
+          <button class="ticket-filter-btn"        id="lf-WARM" onclick="filterLeads('WARM')">WARM</button>
+          <button class="ticket-filter-btn"        id="lf-COLD" onclick="filterLeads('COLD')">COLD</button>
         </div>
 
         <div id="leads-container">
@@ -2177,11 +2171,7 @@
 
   function getFilteredLeads() {
     if (activeLeadFilter === 'all') return allLeads;
-    // Score filters: HOT / WARM / COLD
-    if (['HOT','WARM','COLD'].includes(activeLeadFilter))
-      return allLeads.filter(l => (l.score_label || '').toUpperCase() === activeLeadFilter);
-    // Status filters: new / contacted / qualified / converted
-    return allLeads.filter(l => l.status === activeLeadFilter);
+    return allLeads.filter(l => (l.score_label || '').toUpperCase() === activeLeadFilter);
   }
 
   function filterLeads(filter) {
@@ -2230,12 +2220,6 @@
         ${l.message   ? `<div class="lead-message">${l.message.slice(0, 240)}${l.message.length > 240 ? '…' : ''}</div>` : ''}
         ${l.interests ? `<div class="lead-interests">Interests: ${l.interests}</div>` : ''}
         <div class="lead-actions">
-          <select class="lead-status-select" onchange="updateLeadStatus('${l.id}', this.value, ${i})">
-            <option value="new"       ${l.status==='new'       ? 'selected':''}>New</option>
-            <option value="contacted" ${l.status==='contacted' ? 'selected':''}>Contacted</option>
-            <option value="qualified" ${l.status==='qualified' ? 'selected':''}>Qualified</option>
-            <option value="converted" ${l.status==='converted' ? 'selected':''}>Converted</option>
-          </select>
           <div class="lead-action-btns">
             <a href="${emailHref}" class="lead-btn lead-btn-email">✉ Email</a>
             <button class="lead-btn lead-btn-crm${l.crm_pushed ? ' pushed' : ''}"
