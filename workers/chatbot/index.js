@@ -772,6 +772,47 @@ export default {
       return new Response(null, { headers: openCorsHeaders() });
     }
 
+    const url = new URL(request.url);
+
+    // ── /widget-config — must be checked before the generic GET handler ────────
+    // This is a public GET endpoint called by widget.js on page load.
+    if (url.pathname === "/widget-config") {
+      const clientIdParam = url.searchParams.get("client_id") || env.CLIENT_ID;
+      try {
+        const res = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${clientIdParam}&select=id,name,widget_config`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        const rows = res.ok ? await res.json() : [];
+        const row = rows?.[0] || {};
+        const widgetCfg = row.widget_config || {};
+        return new Response(JSON.stringify({
+          client_id:     clientIdParam,
+          display_name:  widgetCfg.display_name  || "ECHO",
+          brand_line:    widgetCfg.brand_line     || "AI Assistant",
+          greeting:      widgetCfg.greeting       || "Hi! I'm ECHO. How can I help you today?",
+          primary_color: widgetCfg.primary_color  || "#2d5a8f",
+          starters:      widgetCfg.starters       || null,
+          worker_url:    "https://dgc-chat-api.ericdahan10.workers.dev",
+          api_key:       env.SITE_API_KEY || "",
+        }), {
+          headers: { "Content-Type": "application/json", ...openCorsHeaders() },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({
+          client_id:     clientIdParam,
+          display_name:  "ECHO",
+          brand_line:    "AI Assistant",
+          greeting:      "Hi! I'm ECHO. How can I help you today?",
+          primary_color: "#2d5a8f",
+          worker_url:    "https://dgc-chat-api.ericdahan10.workers.dev",
+          api_key:       env.SITE_API_KEY || "",
+        }), {
+          headers: { "Content-Type": "application/json", ...openCorsHeaders() },
+        });
+      }
+    }
+
     // Health check
     if (request.method === "GET") {
       return new Response("OK: DGC Chat API is running. Use POST for chat.", {
@@ -785,8 +826,6 @@ export default {
         headers: corsHeaders(request),
       });
     }
-
-    const url = new URL(request.url);
 
     // ── /vault-login — unauthenticated, validates username + password ──────────
     // Returns the SITE_API_KEY so vault.html can use it for subsequent calls.
@@ -1668,12 +1707,14 @@ export default {
       }
     }
 
-    // ── /lead-capture: save contact form leads to Supabase ───────────────────
-    // Called in parallel with Formspree from the contact form on index.html.
-    // Emails are handled by Formspree — this endpoint is purely for VAULT persistence.
+    // ── /lead-capture: save lead to Supabase + notify admin via Formspree ──────
+    // Called by widget.js contact form and the website contact form.
+    // Saves to VAULT (Supabase) and fires a Formspree email to notify admin.
     if (url.pathname === "/lead-capture") {
       try {
         const { name, email, phone, company, message, source } = await request.json();
+
+        // Save to Supabase for VAULT visibility
         await supabaseInsert("leads", {
           client_id:     env.CLIENT_ID,
           visitor_name:  name    || "",
@@ -1684,14 +1725,31 @@ export default {
           message:       message || "",
           status:        "new",
         }, env);
+
+        // Fire-and-forget Formspree notification so admin gets emailed
+        ctx.waitUntil(
+          fetch(env.FORMSPREE_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              name,
+              email,
+              phone:   phone   || "—",
+              company: company || "—",
+              message: message || "—",
+              source:  source  || "contact-form",
+            }),
+          }).catch((e) => console.error("Formspree notify error:", e.message)),
+        );
+
         return new Response(JSON.stringify({ success: true }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: { "Content-Type": "application/json", ...openCorsHeaders() },
         });
       } catch (e) {
         console.error("Lead capture error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: { "Content-Type": "application/json", ...openCorsHeaders() },
         });
       }
     }
@@ -1888,48 +1946,6 @@ export default {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-        });
-      }
-    }
-
-    // ── /widget-config: public config fetched by widget.js on page load ─────────
-    // Returns display config (name, colors, greeting) for a given client_id.
-    // Uses open CORS — this endpoint is called from arbitrary client websites.
-    // No auth required — only public, non-sensitive data is returned.
-    if (url.pathname === "/widget-config") {
-      const clientIdParam = url.searchParams.get("client_id") || env.CLIENT_ID;
-      try {
-        const res = await fetch(
-          `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${clientIdParam}&select=id,name,widget_config`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
-        );
-        const rows = res.ok ? await res.json() : [];
-        const row = rows?.[0] || {};
-        const widgetCfg = row.widget_config || {};
-        return new Response(JSON.stringify({
-          client_id:     clientIdParam,
-          display_name:  widgetCfg.display_name  || "ECHO",
-          brand_line:    widgetCfg.brand_line     || "AI Assistant",
-          greeting:      widgetCfg.greeting       || "Hi! I'm ECHO. How can I help you today?",
-          primary_color: widgetCfg.primary_color  || "#2d5a8f",
-          starters:      widgetCfg.starters       || null,
-          worker_url:    `https://dgc-chat-api.ericdahan10.workers.dev`,
-          api_key:       env.SITE_API_KEY || "",
-        }), {
-          headers: { "Content-Type": "application/json", ...openCorsHeaders() },
-        });
-      } catch (e) {
-        // Return safe defaults if Supabase is unavailable
-        return new Response(JSON.stringify({
-          client_id:     clientIdParam,
-          display_name:  "ECHO",
-          brand_line:    "AI Assistant",
-          greeting:      "Hi! I'm ECHO. How can I help you today?",
-          primary_color: "#2d5a8f",
-          worker_url:    `https://dgc-chat-api.ericdahan10.workers.dev`,
-          api_key:       env.SITE_API_KEY || "",
-        }), {
-          headers: { "Content-Type": "application/json", ...openCorsHeaders() },
         });
       }
     }
