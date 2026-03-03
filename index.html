@@ -5174,8 +5174,6 @@
         <form
           class="contact-form"
           id="contactForm"
-          action="https://formspree.io/f/mqedlzen"
-          method="POST"
         >
           <input
             type="hidden"
@@ -6289,7 +6287,9 @@
       // ===== Contact Form → Lead Worker =====
       document
         .getElementById("contactForm")
-        .addEventListener("submit", function () {
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
           const name = document.getElementById("name")?.value || "";
           const email = document.getElementById("email")?.value || "";
           const phone = document.getElementById("phone")?.value || "";
@@ -6301,43 +6301,55 @@
             .map((cb) => cb.value)
             .join(", ");
 
+          const submitBtn = this.querySelector('button[type="submit"]');
+          if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Sending…"; }
+
           if (email) {
-            // Lead Worker — qualification + email (primary flow, unchanged)
+            // Formspree — admin notification email (fire-and-forget)
+            fetch("https://formspree.io/f/mqedlzen", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({
+                _subject: "New website lead (dahangroup.io)",
+                name, email, phone, company,
+                services: services || "N/A",
+                message: message || "N/A",
+              }),
+            }).catch(() => {});
+
+            // Lead Worker — AI qualification + personalized email to prospect
             fetch("https://dgc-lead-worker.ericdahan10.workers.dev", {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-API-Key": API_KEY,
-              },
+              headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
               body: JSON.stringify({
-                name: name,
-                email: email,
-                phone: phone,
+                name, email, phone,
                 source: "Website Contact Form",
                 conversation:
-                  "Company: " +
-                  (company || "N/A") +
-                  "\nServices interested in: " +
-                  (services || "N/A") +
-                  "\nMessage: " +
-                  (message || "N/A"),
+                  "Company: " + (company || "N/A") +
+                  "\nServices interested in: " + (services || "N/A") +
+                  "\nMessage: " + (message || "N/A"),
               }),
-            }).catch((e) => console.error("Lead worker error:", e));
+            }).catch(() => {});
 
-            // VAULT persistence — fire-and-forget, does not affect email flow
+            // VAULT persistence — fire-and-forget
             fetch(DGC_CHAT_API + "/lead-capture", {
               method: "POST",
               headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
               body: JSON.stringify({
-                name: name,
-                email: email,
-                phone: phone,
-                company: company,
+                name, email, phone, company,
                 message: (services ? "Services: " + services + "\n" : "") + (message || ""),
                 source: "contact-form",
               }),
             }).catch(() => {});
           }
+
+          // Replace form with success message — no redirect
+          this.innerHTML = `
+            <div style="text-align:center;padding:48px 24px;">
+              <div style="font-size:40px;margin-bottom:16px;">✅</div>
+              <h3 style="font-size:22px;font-weight:700;color:#fff;margin-bottom:10px;">We'll be in touch soon!</h3>
+              <p style="color:rgba(255,255,255,0.6);font-size:15px;line-height:1.6;">Thanks for reaching out. Someone from the DGC team will get back to you within one business day.</p>
+            </div>`;
         });
       // ===== End Contact Form =====
 
