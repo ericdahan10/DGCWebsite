@@ -403,15 +403,23 @@ function parseCsvLine(line) {
 
 // ── Core ingest logic (shared by all ingest routes) ───────────────────────────
 // Chunks, embeds, and stores text. Returns the number of chunks stored.
-async function ingestText(text, source, clientId, env) {
+// `notes` is an optional free-text description of what the content is and how
+// Claude should use it. If provided, it is prepended to every chunk as a
+// [Context: ...] header so Claude always sees the source context when retrieving.
+async function ingestText(text, source, clientId, env, notes = null) {
   const chunks = chunkText(text.trim());
   let stored = 0;
+  // Build prefix once — empty string if no notes so we don't inflate chunk size
+  const contextPrefix = notes && notes.trim()
+    ? `[Context: ${notes.trim()}]\n\n`
+    : "";
   for (const chunk of chunks) {
     if (chunk.trim().length < 20) continue;
-    const embedding = await embedText(chunk, env);
+    const content = contextPrefix + chunk;
+    const embedding = await embedText(content, env);
     await supabaseInsert(
       "knowledge_chunks",
-      { client_id: clientId, content: chunk, source, embedding },
+      { client_id: clientId, content, source, embedding },
       env,
     );
     stored++;
@@ -812,13 +820,14 @@ export default {
 
     // ── /ingest route: chunk text → embed → store in Supabase for RAG ────────
     // Called from the admin panel (or curl) to add knowledge to ECHO's brain.
-    // Body: { text: "...", source: "optional label", client_id: "dgc" }
+    // Body: { text: "...", source: "optional label", notes: "optional context", client_id: "dgc" }
     if (url.pathname === "/ingest") {
       try {
         const {
           text,
           source = "manual",
           client_id = env.CLIENT_ID,
+          notes,
         } = await request.json();
         if (!text || text.trim().length < 10) {
           return new Response(
@@ -832,7 +841,7 @@ export default {
             },
           );
         }
-        const stored = await ingestText(text, source, client_id, env);
+        const stored = await ingestText(text, source, client_id, env, notes);
         return new Response(
           JSON.stringify({
             success: true,
@@ -860,7 +869,7 @@ export default {
     // ── /ingest-url: fetch a webpage, strip HTML, and ingest as knowledge ────
     if (url.pathname === "/ingest-url") {
       try {
-        const { url: pageUrl, source = "website" } = await request.json();
+        const { url: pageUrl, source = "website", notes } = await request.json();
         if (!pageUrl) {
           return new Response(JSON.stringify({ error: "url field required" }), {
             status: 400,
@@ -888,7 +897,7 @@ export default {
         if (text.length < 50) {
           throw new Error("Page returned too little text. The site may block scrapers — try pasting the content directly in the Text tab instead.");
         }
-        const stored = await ingestText(text, source, env.CLIENT_ID, env);
+        const stored = await ingestText(text, source, env.CLIENT_ID, env, notes);
         return new Response(
           JSON.stringify({ success: true, chunks_stored: stored, url: pageUrl }),
           { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
@@ -905,7 +914,7 @@ export default {
     // ── /ingest-youtube: extract transcript from a YouTube video and ingest ──
     if (url.pathname === "/ingest-youtube") {
       try {
-        const { url: ytUrl } = await request.json();
+        const { url: ytUrl, notes } = await request.json();
         if (!ytUrl) {
           return new Response(JSON.stringify({ error: "url field required" }), {
             status: 400,
@@ -957,7 +966,7 @@ export default {
         }
 
         const source = `youtube-${videoId}`;
-        const stored = await ingestText(transcript, source, env.CLIENT_ID, env);
+        const stored = await ingestText(transcript, source, env.CLIENT_ID, env, notes);
         return new Response(
           JSON.stringify({ success: true, chunks_stored: stored, title }),
           { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
@@ -974,7 +983,7 @@ export default {
     // ── /ingest-sheet: fetch a public Google Sheet as CSV and ingest ──────────
     if (url.pathname === "/ingest-sheet") {
       try {
-        const { url: sheetUrl, source = "google-sheets" } = await request.json();
+        const { url: sheetUrl, source = "google-sheets", notes } = await request.json();
         if (!sheetUrl) {
           return new Response(JSON.stringify({ error: "url field required" }), {
             status: 400,
@@ -1009,7 +1018,7 @@ export default {
         });
         const text = rows.join("\n");
 
-        const stored = await ingestText(text, source, env.CLIENT_ID, env);
+        const stored = await ingestText(text, source, env.CLIENT_ID, env, notes);
         return new Response(
           JSON.stringify({ success: true, chunks_stored: stored }),
           { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
@@ -1031,18 +1040,27 @@ export default {
         // Count knowledge chunks for this client
         const chunksCount = await supabaseCount("knowledge_chunks", "client_id", clientId, env);
 
-        // Count distinct knowledge sources and how many chunks each has
+        // Count distinct knowledge sources and extract descriptions from first chunk per source.
+        // We fetch source + first ~400 chars of content to detect [Context: ...] prefixes.
         const sourcesRes = await fetch(
-          `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=source&client_id=eq.${clientId}`,
+          `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=source,content&client_id=eq.${clientId}&order=created_at.asc`,
           { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
         );
         let sources = [];
         if (sourcesRes.ok) {
           const rows = await sourcesRes.json();
-          const counts = {};
-          rows.forEach((r) => { counts[r.source] = (counts[r.source] || 0) + 1; });
-          sources = Object.entries(counts)
-            .map(([source, count]) => ({ source, count }))
+          // Build { source: { count, description } } — description extracted from first chunk's [Context: ...] prefix
+          const sourceMeta = {};
+          rows.forEach((r) => {
+            if (!sourceMeta[r.source]) {
+              // Try to extract [Context: ...] prefix from this (first) chunk for this source
+              const ctxMatch = (r.content || "").match(/^\[Context:\s*([\s\S]*?)\]\n\n/);
+              sourceMeta[r.source] = { count: 0, description: ctxMatch ? ctxMatch[1].trim() : null };
+            }
+            sourceMeta[r.source].count++;
+          });
+          sources = Object.entries(sourceMeta)
+            .map(([source, meta]) => ({ source, count: meta.count, description: meta.description }))
             .sort((a, b) => b.count - a.count);
         }
 
@@ -1661,11 +1679,42 @@ export default {
               match_client_id: env.CLIENT_ID,
             }, env);
             if (chunks && chunks.length > 0) {
-              chunks_retrieved = chunks.map((c) => ({
-                source:     c.source || "unknown",
-                preview:    (c.content || "").slice(0, 250),
-                similarity: c.similarity != null ? Math.round(c.similarity * 100) / 100 : null,
-              }));
+              // Strip [Context: ...] prefix from content before sending to UI so the preview
+              // shows the actual content, not the admin-supplied notes prefix
+              chunks_retrieved = chunks.map((c) => {
+                const rawContent = c.content || "";
+                const ctxMatch = rawContent.match(/^\[Context:\s*([\s\S]*?)\]\n\n/);
+                const context = ctxMatch ? ctxMatch[1].trim() : null;
+                const cleanContent = ctxMatch ? rawContent.slice(ctxMatch[0].length) : rawContent;
+                return {
+                  source:     c.source || null,   // null if RPC doesn't return source yet
+                  id:         c.id || null,         // used to look up source if missing
+                  context,                          // the admin notes prefix, if any
+                  content:    cleanContent,         // full chunk text for expandable UI
+                  similarity: c.similarity != null ? Math.round(c.similarity * 100) / 100 : null,
+                };
+              });
+              // If source is missing from RPC result, fetch from knowledge_chunks by id
+              const missingSource = chunks_retrieved.some((c) => !c.source && c.id);
+              if (missingSource) {
+                try {
+                  const ids = chunks_retrieved.filter((c) => !c.source && c.id).map((c) => c.id);
+                  const idFilter = ids.map((id) => `id=eq.${id}`).join(",");
+                  const srcRes = await fetch(
+                    `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=id,source&or=(${idFilter})`,
+                    { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+                  );
+                  if (srcRes.ok) {
+                    const srcRows = await srcRes.json();
+                    const srcMap = {};
+                    srcRows.forEach((r) => { srcMap[r.id] = r.source; });
+                    chunks_retrieved = chunks_retrieved.map((c) => ({
+                      ...c,
+                      source: c.source || srcMap[c.id] || "unknown",
+                    }));
+                  }
+                } catch { /* non-fatal — source stays null */ }
+              }
               contextText = chunks.map((c) => c.content).join("\n\n---\n\n");
               rag_used = true;
             }
