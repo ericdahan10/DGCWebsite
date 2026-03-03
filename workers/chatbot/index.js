@@ -104,8 +104,12 @@ RESPONSE RULES — FOLLOW STRICTLY
 7. If asked something unrelated to DGC's services, briefly redirect to how DGC can help their business.
 8. When someone describes a pain point (manual tasks, slow follow-up, no AI strategy, weak website), acknowledge it directly and connect it to a specific DGC service.
 9. If a visitor asks about chatbots, AI assistants, or tools like ECHO — let them know DGC builds and deploys these for clients, and it's one of our most requested services.
-10. MEMORY: You have a persistent memory system. If prior conversation history is present in your context, it is real — retrieved from a database for this specific visitor. NEVER say you have no memory between sessions or that each chat starts fresh. If asked whether you remember them, say yes and reference what you know. This is a hard rule — do not break it.
+10. MEMORY: You have a persistent memory system. If prior conversation history is present in your context, it is real — retrieved from a database for this specific visitor. NEVER say you have no memory between sessions or that each chat starts fresh. If asked whether you remember them, say yes and reference what you know. This is a hard rule — do not break it.`;
 
+// ── Routing instructions — always hardcoded, always appended after persona ───
+// These are NEVER editable via Settings. Splitting them out means an admin
+// can customize ECHO's personality without ever breaking the form triggers.
+const ROUTING_INSTRUCTIONS = `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 LEAD CAPTURE — CRITICAL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -135,11 +139,6 @@ When you detect any of the above:
 
 [SUPPORT_TICKET]{"issue_summary":"One sentence summary of the issue","category":"complaint|escalation|billing|urgent|question","urgency":"high|medium|low","needs_human":true,"name":"Their name if known or empty string","email":"Their email if known or empty string"}[/SUPPORT_TICKET]
 
-Examples:
-- User complains project is delayed → [SUPPORT_TICKET]{"issue_summary":"Client unhappy with project timeline","category":"complaint","urgency":"high","needs_human":true,"name":"","email":""}[/SUPPORT_TICKET]
-- User asks for someone to call them → [SUPPORT_TICKET]{"issue_summary":"Client requesting human callback","category":"escalation","urgency":"medium","needs_human":true,"name":"","email":""}[/SUPPORT_TICKET]
-- User reports billing error → [SUPPORT_TICKET]{"issue_summary":"Client reporting billing discrepancy","category":"billing","urgency":"high","needs_human":true,"name":"","email":""}[/SUPPORT_TICKET]
-
 ONLY append the support ticket tag when a genuine issue or escalation is detected — not for general questions you can answer yourself.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -158,14 +157,12 @@ Use when the visitor is interested in our services, wants to learn more, wants p
 → This tells the system to show the contact form or booking link.
 
 EXAMPLES:
-- "I'd love to learn more about your AI agents" → guide the conversation, then after 2-3 exchanges append [SHOW_CONTACT]
 - "Can someone walk me through pricing?" → answer what you can, then append [SHOW_CONTACT]
 - "How do I get started?" → mention the free AI Audit, then append [SHOW_CONTACT]
-- "I want to book a consultation" → respond warmly, append [SHOW_CONTACT]
-- "My project is delayed and I'm frustrated" → empathize, append [SUPPORT_TICKET]
-- "I need to talk to someone about a billing issue" → empathize, append [SUPPORT_TICKET]
+- "I want to book a consultation" → respond warmly, append [SHOW_CONTACT] immediately
+- "I'd love to connect with the team" → respond warmly, append [SHOW_CONTACT] immediately
 
-IMPORTANT: Do NOT append [SHOW_CONTACT] on every response. Only append it when the visitor is ready to take action or has asked to connect. Have a real conversation first.`;
+IMPORTANT: Do NOT append [SHOW_CONTACT] on every response. Only append it when the visitor is ready to take action or has explicitly asked to connect or book.`;
 
 const SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
@@ -328,24 +325,26 @@ async function supabaseCount(table, filterKey, filterValue, env) {
 }
 
 // ── System prompt resolver ────────────────────────────────────────────────────
-// Fetches the custom system prompt stored in the `clients` table for this client.
-// If none is set (null or empty), falls back to the hardcoded DGC_SYSTEM_PROMPT.
-// This lets VAULT's Settings page override ECHO's persona without a code deploy.
+// Returns the persona prompt (custom from Supabase or hardcoded default) with
+// ROUTING_INSTRUCTIONS ALWAYS appended. This means lead capture, support ticket
+// detection, and contact form routing can never be broken by editing Settings.
 async function getSystemPrompt(env) {
-  if (!env.SUPABASE_URL || !env.SUPABASE_KEY || !env.CLIENT_ID) return DGC_SYSTEM_PROMPT;
-  try {
-    const res = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${env.CLIENT_ID}&select=system_prompt`,
-      { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
-    );
-    if (!res.ok) return DGC_SYSTEM_PROMPT;
-    const rows = await res.json();
-    const custom = rows?.[0]?.system_prompt;
-    // Only use custom if it's a non-empty string — otherwise fall back to hardcoded
-    return custom && custom.trim() ? custom : DGC_SYSTEM_PROMPT;
-  } catch {
-    return DGC_SYSTEM_PROMPT; // never crash the chat over a missing settings row
+  let persona = DGC_SYSTEM_PROMPT;
+  if (env.SUPABASE_URL && env.SUPABASE_KEY && env.CLIENT_ID) {
+    try {
+      const res = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${env.CLIENT_ID}&select=system_prompt`,
+        { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+      );
+      if (res.ok) {
+        const rows = await res.json();
+        const custom = rows?.[0]?.system_prompt;
+        if (custom && custom.trim()) persona = custom;
+      }
+    } catch { /* fall back to hardcoded */ }
   }
+  // Always append routing instructions — these are never editable via Settings
+  return persona + ROUTING_INSTRUCTIONS;
 }
 
 // ── HTML stripping ────────────────────────────────────────────────────────────
