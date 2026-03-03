@@ -607,6 +607,51 @@
     .source-name { color: #ccc; }
     .source-count { color: #4a8ac7; font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
 
+    /* ── KB Sub-nav ─────────────────────────────────────────────────────────── */
+    .kb-subnav {
+      display: flex; gap: 8px; align-items: center;
+    }
+
+    .kb-pill {
+      padding: 7px 16px; border-radius: 8px; border: 1px solid transparent;
+      font-size: 12px; font-weight: 700; font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer; letter-spacing: 0.04em; transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .kb-pill:hover { opacity: 0.85; transform: translateY(-1px); }
+    .kb-pill:not(.active) { opacity: 0.5; }
+    .kb-pill:not(.active):hover { opacity: 0.75; }
+
+    .kb-pill-ingest {
+      background: rgba(74,138,199,0.12); color: #7db8e8;
+      border-color: rgba(74,138,199,0.25);
+    }
+    .kb-pill-ingest.active {
+      background: rgba(74,138,199,0.18); color: #a8d4f5;
+      border-color: rgba(74,138,199,0.4);
+    }
+
+    .kb-pill-sources {
+      background: rgba(52,211,153,0.1); color: #6ee7b7;
+      border-color: rgba(52,211,153,0.25);
+    }
+    .kb-pill-sources.active {
+      background: rgba(52,211,153,0.15); color: #86efac;
+      border-color: rgba(52,211,153,0.4);
+    }
+
+    .kb-pill-playground {
+      background: rgba(251,146,60,0.1); color: #fba07a;
+      border-color: rgba(251,146,60,0.25);
+    }
+    .kb-pill-playground.active {
+      background: rgba(251,146,60,0.15); color: #fdba74;
+      border-color: rgba(251,146,60,0.4);
+    }
+
+    .kb-view { display: none; }
+    .kb-view.active { display: block; }
+
     /* ── Playground ─────────────────────────────────────────────────────────── */
     .pg-chunk-card {
       background: linear-gradient(150deg, #1a2030 0%, #141414 100%);
@@ -1016,11 +1061,9 @@
     <div style="display:flex;align-items:center;gap:12px">
       <div class="nav-links">
         <button class="nav-link active" id="nav-knowledge" onclick="navigate('knowledge')">Knowledge Base</button>
-        <button class="nav-link" id="nav-sources" onclick="navigate('sources')">Sources</button>
         <button class="nav-link" id="nav-leads" onclick="navigate('leads')">Leads</button>
         <button class="nav-link" id="nav-tickets" onclick="navigate('tickets')">Tickets</button>
         <button class="nav-link" id="nav-analytics" onclick="navigate('analytics')">Analytics</button>
-        <button class="nav-link" id="nav-playground" onclick="navigate('playground')">Playground</button>
         <button class="nav-link" id="nav-settings" onclick="navigate('settings')">Settings</button>
       </div>
       <button class="nav-logout" onclick="doLogout()">Sign out</button>
@@ -1060,11 +1103,22 @@
 
       <!-- ── Knowledge Base Page ─────────────────────────────────────────── -->
       <div class="page active" id="page-knowledge">
-        <div class="page-header">
-          <div class="page-eyebrow">VAULT · RAG Intelligence</div>
-          <h1 class="page-title">Knowledge Base</h1>
-          <p class="page-desc">Feed knowledge from any source into your AI chatbot. Ingested content is chunked, embedded, and retrieved automatically during conversations.</p>
+        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="page-eyebrow">VAULT · RAG Intelligence</div>
+            <h1 class="page-title">Knowledge Base</h1>
+            <p class="page-desc">Feed knowledge from any source into your AI chatbot. Ingested content is chunked, embedded, and retrieved automatically during conversations.</p>
+          </div>
+          <!-- KB view switcher — right side of header -->
+          <div class="kb-subnav" style="margin-top:6px;flex-shrink:0">
+            <button class="kb-pill kb-pill-ingest active" id="kb-pill-ingest" onclick="switchKbView('ingest')">Ingest</button>
+            <button class="kb-pill kb-pill-sources" id="kb-pill-sources" onclick="switchKbView('sources')">Sources</button>
+            <button class="kb-pill kb-pill-playground" id="kb-pill-playground" onclick="switchKbView('playground')">Playground</button>
+          </div>
         </div>
+
+        <!-- ── Ingest View ── -->
+        <div class="kb-view active" id="kb-view-ingest">
 
         <!-- Tab bar — visual ingest type cards -->
         <div class="tab-bar">
@@ -1219,22 +1273,52 @@
           <div class="ingest-result" id="result-yt"></div>
         </div>
 
-      </div>
+        </div><!-- /kb-view-ingest -->
 
-      <!-- ── Sources Page ────────────────────────────────────────────────── -->
-      <div class="page" id="page-sources">
-        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div>
-            <div class="page-eyebrow">VAULT · RAG Intelligence</div>
-            <h1 class="page-title">Sources</h1>
-            <p class="page-desc">Manage your ingested knowledge. Delete a source to remove all its chunks from your chatbot's memory. To update content, delete and re-ingest.</p>
+        <!-- ── Sources View ── -->
+        <div class="kb-view" id="kb-view-sources">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <p style="font-size:13px;color:#5a7a9a;font-family:'Inter',sans-serif;margin:0">Manage your ingested knowledge. Delete a source to remove all its chunks from ECHO's memory.</p>
+            <button class="btn btn-ghost" onclick="loadSources()" style="font-size:12px;flex-shrink:0;margin-left:16px">↻ Refresh</button>
           </div>
-          <button class="btn btn-ghost" onclick="loadSources()" style="margin-top:4px;font-size:12px">↻ Refresh</button>
-        </div>
-        <div id="sources-grid-container">
-          <div style="font-size:13px;color:#555;font-family:'Inter',sans-serif;padding:8px 0">Loading sources...</div>
-        </div>
-      </div>
+          <div id="sources-grid-container">
+            <div style="font-size:13px;color:#555;font-family:'Inter',sans-serif;padding:8px 0">Loading sources...</div>
+          </div>
+        </div><!-- /kb-view-sources -->
+
+        <!-- ── Playground View ── -->
+        <div class="kb-view" id="kb-view-playground">
+          <p style="font-size:13px;color:#5a7a9a;font-family:'Inter',sans-serif;margin:0 0 20px">Send a test message to ECHO and see exactly which knowledge chunks were retrieved. Useful for verifying RAG accuracy after ingesting new content.</p>
+
+          <!-- Query input -->
+          <div class="card" style="margin-bottom:20px">
+            <div class="form-group" style="margin-bottom:12px">
+              <label class="form-label">Test Message</label>
+              <textarea class="form-textarea" id="pg-query" rows="3" placeholder="e.g. What services does DGC offer? How long does it take to see results?"></textarea>
+            </div>
+            <button class="btn btn-primary" id="pg-run-btn" onclick="runPlayground()">
+              Ask ECHO
+            </button>
+            <div id="pg-error" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#fca5a5;font-size:13px;font-family:'Inter',sans-serif"></div>
+          </div>
+
+          <!-- Response -->
+          <div id="pg-response-wrap" style="display:none">
+            <div class="card" style="margin-bottom:20px;border-color:#2d5a8f">
+              <div class="card-title">ECHO Response</div>
+              <div id="pg-response" style="font-size:14px;color:#d4e2f0;line-height:1.7;font-family:'Inter',sans-serif;white-space:pre-wrap"></div>
+            </div>
+            <div id="pg-chunks-wrap">
+              <div style="font-size:11px;font-weight:700;color:#3a7ab4;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+                <span>Knowledge Retrieved</span>
+                <span id="pg-rag-badge" style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.08em"></span>
+              </div>
+              <div id="pg-chunks-list"></div>
+            </div>
+          </div>
+        </div><!-- /kb-view-playground -->
+
+      </div><!-- /page-knowledge -->
 
       <!-- ── Analytics Page ──────────────────────────────────────────────── -->
       <div class="page" id="page-analytics">
@@ -1388,43 +1472,6 @@
         </div>
       </div>
 
-      <!-- ── Playground Page ───────────────────────────────────────────────── -->
-      <div class="page" id="page-playground">
-        <div class="page-header">
-          <div class="page-eyebrow">VAULT · Testing</div>
-          <h1 class="page-title">ECHO Playground</h1>
-          <p class="page-desc">Send a test message to ECHO and see exactly which knowledge chunks were retrieved and used. Useful for verifying RAG accuracy after ingesting new content.</p>
-        </div>
-
-        <!-- Query input -->
-        <div class="card" style="margin-bottom:20px">
-          <div class="form-group" style="margin-bottom:12px">
-            <label class="form-label">Test Message</label>
-            <textarea class="form-textarea" id="pg-query" rows="3" placeholder="e.g. What services does DGC offer? How long does it take to see results?"></textarea>
-          </div>
-          <button class="btn btn-primary" id="pg-run-btn" onclick="runPlayground()">
-            Ask ECHO
-          </button>
-          <div id="pg-error" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#fca5a5;font-size:13px;font-family:'Inter',sans-serif"></div>
-        </div>
-
-        <!-- Response -->
-        <div id="pg-response-wrap" style="display:none">
-          <div class="card" style="margin-bottom:20px;border-color:#2d5a8f">
-            <div class="card-title">ECHO Response</div>
-            <div id="pg-response" style="font-size:14px;color:#d4e2f0;line-height:1.7;font-family:'Inter',sans-serif;white-space:pre-wrap"></div>
-          </div>
-
-          <!-- RAG chunks -->
-          <div id="pg-chunks-wrap">
-            <div style="font-size:11px;font-weight:700;color:#3a7ab4;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:10px">
-              <span>Knowledge Retrieved</span>
-              <span id="pg-rag-badge" style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.08em"></span>
-            </div>
-            <div id="pg-chunks-list"></div>
-          </div>
-        </div>
-      </div>
 
       <!-- ── Settings Page ─────────────────────────────────────────────────── -->
       <div class="page" id="page-settings">
@@ -1577,15 +1624,29 @@
 
   // ── Navigation ──────────────────────────────────────────────────────────────
   function navigate(page) {
+    // Sources and Playground are sub-views inside the KB page
+    if (page === 'sources' || page === 'playground') {
+      navigate('knowledge');
+      switchKbView(page);
+      return;
+    }
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
     document.getElementById(`page-${page}`).classList.add('active');
     document.getElementById(`nav-${page}`).classList.add('active');
-    if (page === 'analytics')   loadAnalytics();
-    if (page === 'sources')     loadSources();
-    if (page === 'leads')       loadLeads();
-    if (page === 'tickets')     loadTickets();
-    if (page === 'settings')    loadSettings();
+    if (page === 'knowledge') switchKbView('ingest'); // reset to ingest view
+    if (page === 'analytics') loadAnalytics();
+    if (page === 'leads')     loadLeads();
+    if (page === 'tickets')   loadTickets();
+    if (page === 'settings')  loadSettings();
+  }
+
+  function switchKbView(view) {
+    document.querySelectorAll('.kb-view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.kb-pill').forEach(p => p.classList.remove('active'));
+    document.getElementById(`kb-view-${view}`).classList.add('active');
+    document.getElementById(`kb-pill-${view}`).classList.add('active');
+    if (view === 'sources') loadSources();
   }
 
   function switchTab(tab) {
