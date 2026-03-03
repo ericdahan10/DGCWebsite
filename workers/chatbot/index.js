@@ -774,42 +774,129 @@ export default {
 
     const url = new URL(request.url);
 
-    // ── /widget-config — must be checked before the generic GET handler ────────
-    // This is a public GET endpoint called by widget.js on page load.
+    // ── /widget-config — public GET, called by widget.js on every page load ─────
+    // Supports lookup by slug (e.g. "dgc") OR UUID. Slug is preferred for embed snippets.
+    // Returns only public-safe fields — no system_prompt, no secrets.
     if (url.pathname === "/widget-config") {
-      const clientIdParam = url.searchParams.get("client_id") || env.CLIENT_ID;
+      const slugOrId = url.searchParams.get("client_id") || env.CLIENT_ID;
+      // Helper: fetch client row by slug, fall back to UUID if no slug match
+      async function fetchClientRow(key) {
+        const bySlug = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/clients?slug=eq.${encodeURIComponent(key)}&select=id,name,slug,widget_config`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        const slugRows = bySlug.ok ? await bySlug.json() : [];
+        if (slugRows.length) return slugRows[0];
+        // Fall back to UUID match
+        const byId = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${encodeURIComponent(key)}&select=id,name,slug,widget_config`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        const idRows = byId.ok ? await byId.json() : [];
+        return idRows[0] || null;
+      }
+      const WIDGET_DEFAULTS = {
+        display_name:  "ECHO",
+        brand_line:    "AI Assistant",
+        greeting:      "Hi! I'm ECHO. How can I help you today?",
+        primary_color: "#2d5a8f",
+        worker_url:    "https://dgc-chat-api.ericdahan10.workers.dev",
+        api_key:       env.SITE_API_KEY || "",
+      };
+      try {
+        const row = await fetchClientRow(slugOrId);
+        const widgetCfg = row?.widget_config || {};
+        return new Response(JSON.stringify({
+          client_id:     row?.slug || row?.id || slugOrId,
+          display_name:  widgetCfg.display_name  || WIDGET_DEFAULTS.display_name,
+          brand_line:    widgetCfg.brand_line     || WIDGET_DEFAULTS.brand_line,
+          greeting:      widgetCfg.greeting       || WIDGET_DEFAULTS.greeting,
+          primary_color: widgetCfg.primary_color  || WIDGET_DEFAULTS.primary_color,
+          starters:      widgetCfg.starters       || null,
+          worker_url:    WIDGET_DEFAULTS.worker_url,
+          api_key:       WIDGET_DEFAULTS.api_key,
+        }), { headers: { "Content-Type": "application/json", ...openCorsHeaders() } });
+      } catch (e) {
+        return new Response(JSON.stringify({ ...WIDGET_DEFAULTS, client_id: slugOrId }),
+          { headers: { "Content-Type": "application/json", ...openCorsHeaders() } });
+      }
+    }
+
+    // ── /clients-list — authenticated, lists all clients for VAULT selector ───
+    if (url.pathname === "/clients-list") {
+      const key = request.headers.get("X-API-Key");
+      if (!key || key !== env.SITE_API_KEY) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+      }
       try {
         const res = await fetch(
-          `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${clientIdParam}&select=id,name,widget_config`,
+          `${env.SUPABASE_URL}/rest/v1/clients?select=id,name,slug&order=name.asc`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        const clients = res.ok ? await res.json() : [];
+        return new Response(JSON.stringify({ clients }), { headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+      }
+    }
+
+    // ── /client-settings-get — authenticated, loads widget + notification config ─
+    if (url.pathname === "/client-settings-get") {
+      const key = request.headers.get("X-API-Key");
+      if (!key || key !== env.SITE_API_KEY) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+      }
+      try {
+        const body = await request.json();
+        const clientId = body.client_id || env.CLIENT_ID;
+        const res = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${clientId}&select=id,name,slug,widget_config,notification_webhook,crm_config`,
           { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
         );
         const rows = res.ok ? await res.json() : [];
         const row = rows?.[0] || {};
-        const widgetCfg = row.widget_config || {};
         return new Response(JSON.stringify({
-          client_id:     clientIdParam,
-          display_name:  widgetCfg.display_name  || "ECHO",
-          brand_line:    widgetCfg.brand_line     || "AI Assistant",
-          greeting:      widgetCfg.greeting       || "Hi! I'm ECHO. How can I help you today?",
-          primary_color: widgetCfg.primary_color  || "#2d5a8f",
-          starters:      widgetCfg.starters       || null,
-          worker_url:    "https://dgc-chat-api.ericdahan10.workers.dev",
-          api_key:       env.SITE_API_KEY || "",
-        }), {
-          headers: { "Content-Type": "application/json", ...openCorsHeaders() },
-        });
+          client_id:            row.id           || clientId,
+          slug:                 row.slug          || "",
+          widget_config:        row.widget_config || {},
+          notification_webhook: row.notification_webhook || "",
+          crm_config:           row.crm_config    || { type: "none" },
+        }), { headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
       } catch (e) {
-        return new Response(JSON.stringify({
-          client_id:     clientIdParam,
-          display_name:  "ECHO",
-          brand_line:    "AI Assistant",
-          greeting:      "Hi! I'm ECHO. How can I help you today?",
-          primary_color: "#2d5a8f",
-          worker_url:    "https://dgc-chat-api.ericdahan10.workers.dev",
-          api_key:       env.SITE_API_KEY || "",
-        }), {
-          headers: { "Content-Type": "application/json", ...openCorsHeaders() },
-        });
+        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+      }
+    }
+
+    // ── /client-settings-save — authenticated, saves widget + notification config
+    if (url.pathname === "/client-settings-save") {
+      const key = request.headers.get("X-API-Key");
+      if (!key || key !== env.SITE_API_KEY) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+      }
+      try {
+        const body = await request.json();
+        const clientId = body.client_id || env.CLIENT_ID;
+        const patch = {};
+        if (body.widget_config        !== undefined) patch.widget_config        = body.widget_config;
+        if (body.notification_webhook !== undefined) patch.notification_webhook = body.notification_webhook;
+        if (body.crm_config           !== undefined) patch.crm_config           = body.crm_config;
+        patch.updated_at = new Date().toISOString();
+        await fetch(
+          `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${clientId}`,
+          {
+            method: "PATCH",
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify(patch),
+          },
+        );
+        return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
       }
     }
 
@@ -1707,16 +1794,35 @@ export default {
       }
     }
 
-    // ── /lead-capture: save lead to Supabase + notify admin via Formspree ──────
-    // Called by widget.js contact form and the website contact form.
-    // Saves to VAULT (Supabase) and fires a Formspree email to notify admin.
+    // ── /lead-capture: save lead to Supabase + notify via client's webhook ──────
+    // Platform-agnostic: notification goes to whatever webhook URL the client
+    // configured in VAULT Settings (Formspree, Zapier, Make.com, custom endpoint).
+    // No hardcoded email provider — each client controls their own routing.
     if (url.pathname === "/lead-capture") {
       try {
-        const { name, email, phone, company, message, source } = await request.json();
+        const { name, email, phone, company, message, source, client_id: incomingClientId } = await request.json();
 
-        // Save to Supabase for VAULT visibility
+        // Resolve the client — by slug or UUID, fall back to env default
+        const slugOrId = incomingClientId || env.CLIENT_ID;
+        let clientRow = null;
+        try {
+          // Try slug first, then UUID
+          for (const filter of [`slug=eq.${slugOrId}`, `id=eq.${slugOrId}`]) {
+            const r = await fetch(
+              `${env.SUPABASE_URL}/rest/v1/clients?${filter}&select=id,notification_webhook,crm_config`,
+              { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+            );
+            const rows = r.ok ? await r.json() : [];
+            if (rows.length) { clientRow = rows[0]; break; }
+          }
+        } catch (_) { /* non-fatal — still save the lead */ }
+
+        const resolvedClientId = clientRow?.id || env.CLIENT_ID;
+        const notificationWebhook = clientRow?.notification_webhook || env.FORMSPREE_URL || null;
+
+        // Save lead to Supabase for VAULT visibility
         await supabaseInsert("leads", {
-          client_id:     env.CLIENT_ID,
+          client_id:     resolvedClientId,
           visitor_name:  name    || "",
           visitor_email: email   || "",
           visitor_phone: phone   || "",
@@ -1726,21 +1832,24 @@ export default {
           status:        "new",
         }, env);
 
-        // Fire-and-forget Formspree notification so admin gets emailed
-        ctx.waitUntil(
-          fetch(env.FORMSPREE_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Accept: "application/json" },
-            body: JSON.stringify({
-              name,
-              email,
-              phone:   phone   || "—",
-              company: company || "—",
-              message: message || "—",
-              source:  source  || "contact-form",
-            }),
-          }).catch((e) => console.error("Formspree notify error:", e.message)),
-        );
+        // Fire-and-forget: POST lead data to client's configured webhook
+        // This could be Formspree, Zapier, Make.com, or any HTTP endpoint
+        if (notificationWebhook) {
+          ctx.waitUntil(
+            fetch(notificationWebhook, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({
+                name,
+                email,
+                phone:   phone   || "—",
+                company: company || "—",
+                message: message || "—",
+                source:  source  || "contact-form",
+              }),
+            }).catch((e) => console.error("Notification webhook error:", e.message)),
+          );
+        }
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { "Content-Type": "application/json", ...openCorsHeaders() },
