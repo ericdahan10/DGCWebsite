@@ -9,5 +9,5 @@ ADMIN_EMAIL = "admin@dahangroup.io"
 LEAD_WORKER_URL = "https://dgc-lead-worker.ericdahan10.workers.dev"
 SUPABASE_URL = "https://nkwtcfcseocugtgwtgez.supabase.co"
 CLIENT_ID = "637d91b6-a077-4dbe-8e9d-b2c08d80e776"
-VAULT_USERNAME = "admin"
+VAULT_USERNAME = "test"
 # Note: VAULT_PASSWORD is a secret — set via: wrangler secret put VAULT_PASSWORD --name dgc-chat-api
