@@ -607,6 +607,41 @@
     .source-name { color: #ccc; }
     .source-count { color: #4a8ac7; font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
 
+    /* ── Playground ─────────────────────────────────────────────────────────── */
+    .pg-chunk-card {
+      background: linear-gradient(150deg, #1a2030 0%, #141414 100%);
+      border: 1px solid #2a3d5c; border-radius: 10px;
+      padding: 16px 20px; margin-bottom: 12px;
+    }
+
+    .pg-chunk-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .pg-chunk-source {
+      font-size: 11px; font-weight: 700; color: #4a8ac7;
+      letter-spacing: 0.1em; text-transform: uppercase;
+    }
+
+    .pg-chunk-sim {
+      font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 20px;
+    }
+
+    .pg-chunk-sim.high  { background: rgba(74,222,128,0.1);  color: #4ade80; border: 1px solid rgba(74,222,128,0.2); }
+    .pg-chunk-sim.mid   { background: rgba(251,191,36,0.1);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
+    .pg-chunk-sim.low   { background: rgba(156,163,175,0.1); color: #9ca3af; border: 1px solid rgba(156,163,175,0.2); }
+
+    .pg-chunk-preview {
+      font-size: 13px; color: #7a9ab8; line-height: 1.6;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .pg-no-rag {
+      padding: 20px; text-align: center;
+      font-size: 13px; color: #555; font-family: 'Inter', sans-serif;
+    }
+
     /* ── Spinner ────────────────────────────────────────────────────────────── */
     .spinner {
       width: 14px; height: 14px; border-radius: 50%;
@@ -985,6 +1020,8 @@
         <button class="nav-link" id="nav-leads" onclick="navigate('leads')">Leads</button>
         <button class="nav-link" id="nav-tickets" onclick="navigate('tickets')">Tickets</button>
         <button class="nav-link" id="nav-analytics" onclick="navigate('analytics')">Analytics</button>
+        <button class="nav-link" id="nav-playground" onclick="navigate('playground')">Playground</button>
+        <button class="nav-link" id="nav-settings" onclick="navigate('settings')">Settings</button>
       </div>
       <button class="nav-logout" onclick="doLogout()">Sign out</button>
     </div>
@@ -1329,6 +1366,96 @@
         </div>
       </div>
 
+      <!-- ── Playground Page ───────────────────────────────────────────────── -->
+      <div class="page" id="page-playground">
+        <div class="page-header">
+          <div class="page-eyebrow">VAULT · Testing</div>
+          <h1 class="page-title">ECHO Playground</h1>
+          <p class="page-desc">Send a test message to ECHO and see exactly which knowledge chunks were retrieved and used. Useful for verifying RAG accuracy after ingesting new content.</p>
+        </div>
+
+        <!-- Query input -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Test Message</label>
+            <textarea class="form-textarea" id="pg-query" rows="3" placeholder="e.g. What services does DGC offer? How long does it take to see results?"></textarea>
+          </div>
+          <button class="btn btn-primary" id="pg-run-btn" onclick="runPlayground()">
+            Ask ECHO
+          </button>
+          <div id="pg-error" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#fca5a5;font-size:13px;font-family:'Inter',sans-serif"></div>
+        </div>
+
+        <!-- Response -->
+        <div id="pg-response-wrap" style="display:none">
+          <div class="card" style="margin-bottom:20px;border-color:#2d5a8f">
+            <div class="card-title">ECHO Response</div>
+            <div id="pg-response" style="font-size:14px;color:#d4e2f0;line-height:1.7;font-family:'Inter',sans-serif;white-space:pre-wrap"></div>
+          </div>
+
+          <!-- RAG chunks -->
+          <div id="pg-chunks-wrap">
+            <div style="font-size:11px;font-weight:700;color:#3a7ab4;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+              <span>Knowledge Retrieved</span>
+              <span id="pg-rag-badge" style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.08em"></span>
+            </div>
+            <div id="pg-chunks-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Settings Page ─────────────────────────────────────────────────── -->
+      <div class="page" id="page-settings">
+        <div class="page-header">
+          <div class="page-eyebrow">VAULT · Configuration</div>
+          <h1 class="page-title">Settings</h1>
+          <p class="page-desc">Customize ECHO's system prompt — the instructions that define its persona, tone, and behavior. Changes take effect immediately on the next conversation.</p>
+        </div>
+
+        <!-- Status banner -->
+        <div id="settings-status-banner" style="display:none;margin-bottom:16px;padding:10px 16px;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif"></div>
+
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>System Prompt</span>
+            <span id="settings-custom-badge" style="display:none;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.08em;background:rgba(74,138,199,0.15);border:1px solid rgba(74,138,199,0.3);color:#4a8ac7">CUSTOM</span>
+          </div>
+          <div class="form-group" style="margin-bottom:8px">
+            <textarea class="form-textarea" id="settings-prompt" rows="20" style="min-height:360px;font-size:13px;line-height:1.6;font-family:'Inter',sans-serif" placeholder="Loading..."></textarea>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+            <span id="settings-char-count" style="font-size:11px;color:#555;font-family:'Inter',sans-serif">0 characters</span>
+            <div style="display:flex;gap:10px">
+              <button class="btn btn-ghost" id="settings-reset-btn" onclick="resetSystemPrompt()" style="font-size:12px">↺ Reset to Default</button>
+              <button class="btn btn-primary" id="settings-save-btn" onclick="saveSettings()">Save Changes</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Read-only info block -->
+        <div class="card" style="background:linear-gradient(150deg,#181e2c 0%,#111 100%);border-color:#1e2a3a">
+          <div class="card-title">Bot Configuration</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div>
+              <div style="font-size:10px;font-weight:700;color:#3a4a58;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Model</div>
+              <div style="font-size:13px;color:#6a8aaa;font-family:'Inter',sans-serif">claude-sonnet-4-20250514</div>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;color:#3a4a58;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Max Tokens</div>
+              <div style="font-size:13px;color:#6a8aaa;font-family:'Inter',sans-serif">400 tokens per response</div>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;color:#3a4a58;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">RAG</div>
+              <div style="font-size:13px;color:#6a8aaa;font-family:'Inter',sans-serif">Top 4 chunks · OpenAI text-embedding-3-small</div>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;color:#3a4a58;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Memory</div>
+              <div style="font-size:13px;color:#6a8aaa;font-family:'Inter',sans-serif">Last 10 messages per visitor (Supabase)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -1432,10 +1559,11 @@
     document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
     document.getElementById(`page-${page}`).classList.add('active');
     document.getElementById(`nav-${page}`).classList.add('active');
-    if (page === 'analytics') loadAnalytics();
-    if (page === 'sources') loadSources();
-    if (page === 'leads') loadLeads();
-    if (page === 'tickets') loadTickets();
+    if (page === 'analytics')   loadAnalytics();
+    if (page === 'sources')     loadSources();
+    if (page === 'leads')       loadLeads();
+    if (page === 'tickets')     loadTickets();
+    if (page === 'settings')    loadSettings();
   }
 
   function switchTab(tab) {
@@ -2215,6 +2343,168 @@
       showToast('CRM push failed: ' + e.message, 'error');
       if (btn) { btn.disabled = false; btn.textContent = '⬆ CRM'; }
     }
+  }
+
+  // ── Playground ───────────────────────────────────────────────────────────────
+  // Sends a test query to ECHO via the /playground endpoint and renders:
+  //   - ECHO's response (same pipeline as real chat)
+  //   - Each RAG chunk with source label, similarity score, and content preview
+
+  async function runPlayground() {
+    const query = document.getElementById('pg-query').value.trim();
+    const btn = document.getElementById('pg-run-btn');
+    const errEl = document.getElementById('pg-error');
+    const respWrap = document.getElementById('pg-response-wrap');
+
+    if (!query) { showToast('Enter a test message first.', 'error'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Asking ECHO...';
+    errEl.style.display = 'none';
+    respWrap.style.display = 'none';
+
+    try {
+      const data = await callApi('/playground', { query });
+
+      // Render response
+      document.getElementById('pg-response').textContent = data.response || '(no response)';
+
+      // Render RAG badge
+      const badge = document.getElementById('pg-rag-badge');
+      if (data.rag_used) {
+        badge.textContent = `${data.chunks_retrieved.length} chunk${data.chunks_retrieved.length !== 1 ? 's' : ''} retrieved`;
+        badge.style.cssText = 'background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);color:#4ade80;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.08em';
+      } else {
+        badge.textContent = 'No RAG — answered from base prompt';
+        badge.style.cssText = 'background:rgba(156,163,175,0.1);border:1px solid rgba(156,163,175,0.2);color:#9ca3af;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.08em';
+      }
+
+      // Render chunks
+      const list = document.getElementById('pg-chunks-list');
+      if (!data.rag_used || !data.chunks_retrieved.length) {
+        list.innerHTML = '<div class="pg-no-rag">No knowledge chunks were retrieved for this query. Try ingesting more content or rephrasing the question.</div>';
+      } else {
+        list.innerHTML = data.chunks_retrieved.map((c, i) => {
+          const sim = c.similarity;
+          const simClass = sim == null ? 'low' : sim >= 0.75 ? 'high' : sim >= 0.55 ? 'mid' : 'low';
+          const simLabel = sim == null ? '—' : `${Math.round(sim * 100)}% match`;
+          return `<div class="pg-chunk-card">
+            <div class="pg-chunk-header">
+              <span class="pg-chunk-source">${escapeHtml(c.source)}</span>
+              <span class="pg-chunk-sim ${simClass}">${simLabel}</span>
+            </div>
+            <div class="pg-chunk-preview">${escapeHtml(c.preview)}${c.preview.length >= 250 ? '…' : ''}</div>
+          </div>`;
+        }).join('');
+      }
+
+      respWrap.style.display = 'block';
+    } catch (e) {
+      errEl.textContent = '✗ ' + e.message;
+      errEl.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Ask ECHO';
+  }
+
+  // Allow Ctrl+Enter / Cmd+Enter to submit from the textarea
+  document.getElementById('pg-query').addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runPlayground();
+  });
+
+  // ── Settings ─────────────────────────────────────────────────────────────────
+  // Loads the current system prompt from /settings-get and populates the textarea.
+  // Saves back to /settings-save, or resets to the hardcoded default via { reset: true }.
+
+  let settingsDefaultPrompt = ''; // cached default for the Reset button
+
+  async function loadSettings() {
+    const textarea = document.getElementById('settings-prompt');
+    const charCount = document.getElementById('settings-char-count');
+    const customBadge = document.getElementById('settings-custom-badge');
+
+    textarea.value = 'Loading...';
+    textarea.disabled = true;
+    document.getElementById('settings-save-btn').disabled = true;
+    document.getElementById('settings-reset-btn').disabled = true;
+
+    try {
+      const data = await callApi('/settings-get', {});
+      settingsDefaultPrompt = data.default_prompt || '';
+      textarea.value = data.system_prompt || '';
+      textarea.disabled = false;
+      document.getElementById('settings-save-btn').disabled = false;
+      document.getElementById('settings-reset-btn').disabled = false;
+
+      // Show CUSTOM badge if a non-default prompt is active
+      customBadge.style.display = data.is_custom ? 'inline-flex' : 'none';
+      charCount.textContent = `${(data.system_prompt || '').length.toLocaleString()} characters`;
+    } catch (e) {
+      textarea.value = '';
+      textarea.placeholder = 'Failed to load settings: ' + e.message;
+    }
+  }
+
+  // Update character count as user types
+  document.getElementById('settings-prompt').addEventListener('input', function() {
+    document.getElementById('settings-char-count').textContent = `${this.value.length.toLocaleString()} characters`;
+  });
+
+  async function saveSettings() {
+    const prompt = document.getElementById('settings-prompt').value.trim();
+    const btn = document.getElementById('settings-save-btn');
+    const banner = document.getElementById('settings-status-banner');
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+      await callApi('/settings-save', { system_prompt: prompt });
+
+      // Update UI to reflect saved state
+      const customBadge = document.getElementById('settings-custom-badge');
+      customBadge.style.display = prompt && prompt !== settingsDefaultPrompt ? 'inline-flex' : 'none';
+
+      banner.textContent = '✓ System prompt saved. ECHO will use the updated prompt on the next conversation.';
+      banner.style.cssText = 'display:block;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);color:#4ade80';
+      setTimeout(() => { banner.style.display = 'none'; }, 4000);
+      showToast('Settings saved');
+    } catch (e) {
+      banner.textContent = '✗ Failed to save: ' + e.message;
+      banner.style.cssText = 'display:block;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#fca5a5';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+  }
+
+  async function resetSystemPrompt() {
+    if (!confirm('Reset to the hardcoded default system prompt? Any custom prompt will be cleared.')) return;
+
+    const btn = document.getElementById('settings-reset-btn');
+    btn.disabled = true;
+    btn.textContent = 'Resetting...';
+
+    try {
+      await callApi('/settings-save', { reset: true });
+
+      // Populate textarea with the default
+      document.getElementById('settings-prompt').value = settingsDefaultPrompt;
+      document.getElementById('settings-char-count').textContent = `${settingsDefaultPrompt.length.toLocaleString()} characters`;
+      document.getElementById('settings-custom-badge').style.display = 'none';
+
+      const banner = document.getElementById('settings-status-banner');
+      banner.textContent = '✓ Reset to default. ECHO will use the built-in system prompt.';
+      banner.style.cssText = 'display:block;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);color:#4ade80';
+      setTimeout(() => { banner.style.display = 'none'; }, 4000);
+      showToast('Reset to default');
+    } catch (e) {
+      showToast('Reset failed: ' + e.message, 'error');
+    }
+
+    btn.disabled = false;
+    btn.textContent = '↺ Reset to Default';
   }
 
   // ── Toast ────────────────────────────────────────────────────────────────────

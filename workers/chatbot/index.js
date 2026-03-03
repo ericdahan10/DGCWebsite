@@ -327,6 +327,27 @@ async function supabaseCount(table, filterKey, filterValue, env) {
   return match ? parseInt(match[1], 10) : 0;
 }
 
+// ── System prompt resolver ────────────────────────────────────────────────────
+// Fetches the custom system prompt stored in the `clients` table for this client.
+// If none is set (null or empty), falls back to the hardcoded DGC_SYSTEM_PROMPT.
+// This lets VAULT's Settings page override ECHO's persona without a code deploy.
+async function getSystemPrompt(env) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY || !env.CLIENT_ID) return DGC_SYSTEM_PROMPT;
+  try {
+    const res = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${env.CLIENT_ID}&select=system_prompt`,
+      { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+    );
+    if (!res.ok) return DGC_SYSTEM_PROMPT;
+    const rows = await res.json();
+    const custom = rows?.[0]?.system_prompt;
+    // Only use custom if it's a non-empty string — otherwise fall back to hardcoded
+    return custom && custom.trim() ? custom : DGC_SYSTEM_PROMPT;
+  } catch {
+    return DGC_SYSTEM_PROMPT; // never crash the chat over a missing settings row
+  }
+}
+
 // ── HTML stripping ────────────────────────────────────────────────────────────
 // Converts raw HTML into clean plain text suitable for embedding.
 // Removes scripts, styles, nav, and footer — keeps meaningful body text.
@@ -1611,6 +1632,152 @@ export default {
       }
     }
 
+    // ── /playground: test ECHO live with full RAG + visible retrieved chunks ──
+    // Body: { query: "..." }
+    // Returns: { response, chunks_retrieved: [{source, preview, similarity}], rag_used }
+    // Runs the exact same RAG + Claude pipeline as the real chat — nothing mocked.
+    // The chunks_retrieved array lets admins see exactly which knowledge was used.
+    if (url.pathname === "/playground") {
+      try {
+        const { query } = await request.json();
+        if (!query || query.trim().length < 2) {
+          return new Response(JSON.stringify({ error: "query field required" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+
+        // Step 1: Embed the query (same as real chat)
+        let chunks_retrieved = [];
+        let rag_used = false;
+        let contextText = null;
+
+        if (env.OPENAI_API_KEY && env.SUPABASE_URL && env.SUPABASE_KEY) {
+          try {
+            const queryEmbedding = await embedText(query, env);
+            const chunks = await supabaseRpc("match_knowledge_chunks", {
+              query_embedding: queryEmbedding,
+              match_count: 4,
+              match_client_id: env.CLIENT_ID,
+            }, env);
+            if (chunks && chunks.length > 0) {
+              chunks_retrieved = chunks.map((c) => ({
+                source:     c.source || "unknown",
+                preview:    (c.content || "").slice(0, 250),
+                similarity: c.similarity != null ? Math.round(c.similarity * 100) / 100 : null,
+              }));
+              contextText = chunks.map((c) => c.content).join("\n\n---\n\n");
+              rag_used = true;
+            }
+          } catch (e) {
+            console.error("Playground RAG error (non-fatal):", e.message);
+          }
+        }
+
+        // Step 2: Build system prompt (same as real chat, respects custom prompt from Settings)
+        let systemPrompt = await getSystemPrompt(env);
+        if (contextText) {
+          systemPrompt += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nKNOWLEDGE BASE — use this to answer accurately\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${contextText}`;
+        }
+
+        // Step 3: Call Claude with no conversation history (single-shot test)
+        const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": env.ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 400,
+            system: systemPrompt,
+            messages: [{ role: "user", content: query }],
+          }),
+        });
+        const claudeData = await claudeRes.json();
+        const rawResponse = claudeData?.content?.[0]?.text || "";
+
+        // Strip any tag artifacts (LEAD_DATA, SUPPORT_TICKET, SHOW_CONTACT)
+        const cleanResponse = rawResponse
+          .replace(/\[LEAD_DATA\].*?\[\/LEAD_DATA\]/gs, "")
+          .replace(/\[SUPPORT_TICKET\].*?\[\/SUPPORT_TICKET\]/gs, "")
+          .replace(/\[SHOW_CONTACT\]/g, "")
+          .trim();
+
+        return new Response(JSON.stringify({ response: cleanResponse, chunks_retrieved, rag_used }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      } catch (e) {
+        console.error("Playground error:", e.message);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /settings-get: read current bot configuration from clients table ────────
+    // Returns system_prompt (custom if set, default otherwise), is_custom flag,
+    // and the default prompt so the Settings page can show a Reset to Default option.
+    if (url.pathname === "/settings-get") {
+      try {
+        const res = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${env.CLIENT_ID}&select=system_prompt,name`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        if (!res.ok) throw new Error("Failed to fetch client settings");
+        const rows = await res.json();
+        const row = rows?.[0] || {};
+        const customPrompt = row.system_prompt && row.system_prompt.trim() ? row.system_prompt : null;
+        return new Response(JSON.stringify({
+          system_prompt:  customPrompt || DGC_SYSTEM_PROMPT,
+          is_custom:      !!customPrompt,
+          default_prompt: DGC_SYSTEM_PROMPT,
+          client_name:    row.name || "DGC",
+        }), { headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /settings-save: update (or reset) the system prompt in clients table ────
+    // Body: { system_prompt: "..." }  — saves custom prompt
+    // Body: { reset: true }           — clears custom prompt (reverts to hardcoded default)
+    // Setting system_prompt to null in Supabase tells getSystemPrompt() to fall back to DGC_SYSTEM_PROMPT.
+    if (url.pathname === "/settings-save") {
+      try {
+        const { system_prompt, reset } = await request.json();
+        // reset: true wipes the custom prompt; otherwise save the trimmed value (null if empty)
+        const newPrompt = reset ? null : ((system_prompt || "").trim() || null);
+        const res = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${env.CLIENT_ID}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              apikey:         env.SUPABASE_KEY,
+              Authorization:  `Bearer ${env.SUPABASE_KEY}`,
+              Prefer:         "return=minimal",
+            },
+            body: JSON.stringify({ system_prompt: newPrompt }),
+          },
+        );
+        if (!res.ok) throw new Error(`Failed to save settings (${res.status})`);
+        return new Response(JSON.stringify({ success: true, is_custom: !reset && !!newPrompt }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
     // ── /escalation endpoint: proxy escalation form direct to Apps Script ──
     if (url.pathname === "/escalation") {
       // Tickets are now stored in Supabase (Google Sheets logging removed)
@@ -1701,7 +1868,8 @@ export default {
       // ── RAG: inject relevant knowledge before calling Claude ──────────────
       // Finds chunks in Supabase closest to the user's latest message.
       // If no chunks found (or RAG errors), chat continues with base prompt.
-      let systemPrompt = DGC_SYSTEM_PROMPT;
+      // getSystemPrompt() checks for a custom prompt in Supabase first (set via VAULT Settings).
+      let systemPrompt = await getSystemPrompt(env);
       const lastUserMsg = [...messages]
         .reverse()
         .find((m) => m.role === "user");
