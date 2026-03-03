@@ -435,7 +435,12 @@
     .stat-card {
       background: linear-gradient(150deg, #262e3d 0%, #1e1e1e 60%);
       border: 1px solid #2a3d5c; border-radius: 12px;
-      padding: 20px 22px;
+      padding: 20px 22px; cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s, box-shadow 0.15s;
+    }
+    .stat-card:hover {
+      border-color: #4a8ac7; transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(45,90,143,0.25);
     }
 
     .stat-label {
@@ -501,6 +506,22 @@
     .bar-fill-purple { background: linear-gradient(90deg, #5a3a8f, #8a5ad4); }
     .bar-fill-slate  { background: linear-gradient(90deg, #3a4a5a, #5a7080); }
     .bar-chart-count { font-size: 12px; color: #ccd; font-weight: 600; min-width: 28px; text-align: right; }
+    .bar-chart-row.bar-chart-clickable { cursor: pointer; border-radius: 6px; padding: 2px 4px; margin: 0 -4px; }
+    .bar-chart-row.bar-chart-clickable:hover { background: rgba(45,90,143,0.1); }
+    .bar-chart-row.bar-chart-clickable:hover .bar-chart-label { color: #7ab3e0; }
+    .bar-chart-row.bar-chart-clickable:hover .bar-chart-fill { filter: brightness(1.25); }
+    .bar-chart-row.bar-chart-clickable:hover .bar-chart-count { color: #fff; }
+
+    /* ── Floating bar tooltip ─────────────────────────────────────────────────── */
+    .bar-tooltip {
+      position: fixed; pointer-events: none; z-index: 300;
+      background: #1a2535; border: 1px solid #2d5a8f; border-radius: 8px;
+      padding: 7px 12px; font-family: 'Inter', sans-serif; white-space: nowrap;
+      opacity: 0; transition: opacity 0.12s; transform: translate(-50%, -130%);
+    }
+    .bar-tooltip.visible { opacity: 1; }
+    .bar-tooltip-label { font-size: 12px; color: #7ab3e0; font-weight: 600; margin-bottom: 2px; }
+    .bar-tooltip-value { font-size: 13px; color: #e8f0f8; font-weight: 700; }
 
     /* ── Conversation list ───────────────────────────────────────────────────── */
     .convo-row {
@@ -574,9 +595,13 @@
     /* ── Sources list ──────────────────────────────────────────────────────── */
     .source-row {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 10px 0; border-bottom: 1px solid #1e2533;
+      padding: 10px 8px; border-bottom: 1px solid #1e2533;
       font-size: 13px; font-family: 'Inter', sans-serif;
+      cursor: pointer; border-radius: 6px; transition: background 0.15s;
+      margin: 0 -8px;
     }
+    .source-row:hover { background: rgba(45,90,143,0.12); }
+    .source-row:hover .source-name { color: #7ab3e0; }
 
     .source-row:last-child { border-bottom: none; }
     .source-name { color: #ccc; }
@@ -1163,27 +1188,27 @@
           <button class="btn btn-ghost" onclick="loadAnalytics()" style="margin-top:4px;font-size:12px">↻ Refresh</button>
         </div>
 
-        <!-- Stat cards -->
+        <!-- Stat cards — clickable, navigate to the relevant page -->
         <div class="stats-grid">
-          <div class="stat-card stat-blue">
+          <div class="stat-card stat-blue" onclick="navigate('knowledge')" title="Go to Knowledge Base">
             <div class="stat-label">Knowledge Chunks</div>
             <div class="stat-value" id="stat-chunks">—</div>
-            <div class="stat-sub">Embedded in RAG</div>
+            <div class="stat-sub">Embedded in RAG →</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card" onclick="document.getElementById('convo-list').scrollIntoView({behavior:'smooth'})" title="View conversations below">
             <div class="stat-label">Conversations</div>
             <div class="stat-value" id="stat-convos">—</div>
-            <div class="stat-sub">Total chat sessions</div>
+            <div class="stat-sub">Click to view below →</div>
           </div>
-          <div class="stat-card stat-green">
+          <div class="stat-card stat-green" onclick="navigate('leads')" title="Go to Leads page">
             <div class="stat-label">Leads Captured</div>
             <div class="stat-value" id="stat-leads">—</div>
-            <div class="stat-sub">From chat + contact form</div>
+            <div class="stat-sub">View all leads →</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card" onclick="navigate('tickets')" title="Go to Tickets page">
             <div class="stat-label">Support Tickets</div>
             <div class="stat-value" id="stat-tickets">—</div>
-            <div class="stat-sub">Escalations logged</div>
+            <div class="stat-sub">View all tickets →</div>
           </div>
         </div>
 
@@ -1235,6 +1260,12 @@
 
       <!-- ── Conversation Drawer ──────────────────────────────────────────── -->
       <div class="convo-overlay" id="convo-overlay" onclick="closeConvoDrawer()"></div>
+      <!-- Floating bar chart tooltip -->
+      <div class="bar-tooltip" id="bar-tooltip">
+        <div class="bar-tooltip-label" id="bar-tooltip-label"></div>
+        <div class="bar-tooltip-value" id="bar-tooltip-value"></div>
+      </div>
+
       <div class="convo-drawer" id="convo-drawer">
         <div class="drawer-header">
           <div>
@@ -1709,8 +1740,9 @@
     chatbot: 'bar-fill-blue', 'contact-form': 'bar-fill-purple', unknown: 'bar-fill-slate',
   };
 
-  // Renders a horizontal bar chart into a container element from a { label: count } object.
-  function renderBarChart(containerId, dataObj, totalOverride) {
+  // Renders a horizontal bar chart. onClickExpr is an optional JS expression string
+  // where {label} is replaced with the actual data label, e.g. "navigateFilterLeads('{label}')".
+  function renderBarChart(containerId, dataObj, totalOverride, onClickExpr) {
     const el = document.getElementById(containerId);
     if (!el) return;
     const entries = Object.entries(dataObj).sort((a, b) => b[1] - a[1]);
@@ -1723,7 +1755,14 @@
       const pct = total > 0 ? Math.round((count / total) * 100) : 0;
       const colorClass = BAR_COLORS[label] || 'bar-fill-blue';
       const displayLabel = label.replace(/_/g, ' ');
-      return `<div class="bar-chart-row">
+      const clickable = onClickExpr ? 'bar-chart-clickable' : '';
+      const onclick = onClickExpr
+        ? `onclick="${onClickExpr.replace(/\{label\}/g, label)}"`
+        : '';
+      const safeLabel = displayLabel.replace(/'/g, "\\'");
+      return `<div class="bar-chart-row ${clickable}" ${onclick}
+          onmouseenter="showBarTooltip(event,'${safeLabel}',${count},${pct})"
+          onmouseleave="hideBarTooltip()">
         <span class="bar-chart-label">${displayLabel}</span>
         <div class="bar-chart-track">
           <div class="bar-chart-fill ${colorClass}" style="width:${pct}%"></div>
@@ -1731,6 +1770,48 @@
         <span class="bar-chart-count">${count}</span>
       </div>`;
     }).join('');
+  }
+
+  // ── Bar tooltip ──────────────────────────────────────────────────────────────
+  function showBarTooltip(e, label, count, pct) {
+    const tip = document.getElementById('bar-tooltip');
+    document.getElementById('bar-tooltip-label').textContent = label;
+    document.getElementById('bar-tooltip-value').textContent = `${count} (${pct}%)`;
+    tip.style.left = e.clientX + 'px';
+    tip.style.top  = e.clientY + 'px';
+    tip.classList.add('visible');
+  }
+  function hideBarTooltip() {
+    document.getElementById('bar-tooltip').classList.remove('visible');
+  }
+  // Keep tooltip following the cursor
+  document.addEventListener('mousemove', (e) => {
+    const tip = document.getElementById('bar-tooltip');
+    if (tip && tip.classList.contains('visible')) {
+      tip.style.left = e.clientX + 'px';
+      tip.style.top  = e.clientY + 'px';
+    }
+  });
+
+  // ── Chart click navigation helpers ───────────────────────────────────────────
+  // Navigate to Leads page and apply a score/status filter.
+  function navigateFilterLeads(filter) {
+    navigate('leads');
+    // loadLeads is async — wait for data before applying filter
+    const tryFilter = () => {
+      if (allLeads.length > 0) { filterLeads(filter); }
+      else { setTimeout(tryFilter, 100); }
+    };
+    setTimeout(tryFilter, 100);
+  }
+  // Navigate to Tickets page and apply a status filter.
+  function navigateFilterTickets(filter) {
+    navigate('tickets');
+    const tryFilter = () => {
+      if (allTickets.length > 0) { filterTickets(filter); }
+      else { setTimeout(tryFilter, 100); }
+    };
+    setTimeout(tryFilter, 100);
   }
 
   async function loadAnalytics() {
@@ -1755,21 +1836,21 @@
       set('leads',   s.leads ?? 0);
       set('tickets', s.tickets ?? 0);
 
-      // Lead breakdowns
-      renderBarChart('chart-leads-score',  s.leadsByScore  || {}, s.leads);
-      renderBarChart('chart-leads-status', s.leadsByStatus || {}, s.leads);
-      renderBarChart('chart-leads-source', s.leadsBySource || {}, s.leads);
+      // Lead breakdowns — clicking navigates to Leads page with that filter active
+      renderBarChart('chart-leads-score',  s.leadsByScore  || {}, s.leads,   "navigateFilterLeads('{label}')");
+      renderBarChart('chart-leads-status', s.leadsByStatus || {}, s.leads,   "navigateFilterLeads('{label}')");
+      renderBarChart('chart-leads-source', s.leadsBySource || {}, s.leads,   "navigate('leads')");
 
-      // Ticket breakdowns
-      renderBarChart('chart-tickets-status',  s.ticketsByStatus  || {}, s.tickets);
-      renderBarChart('chart-tickets-urgency', s.ticketsByUrgency || {}, s.tickets);
+      // Ticket breakdowns — clicking navigates to Tickets page with that filter active
+      renderBarChart('chart-tickets-status',  s.ticketsByStatus  || {}, s.tickets, "navigateFilterTickets('{label}')");
+      renderBarChart('chart-tickets-urgency', s.ticketsByUrgency || {}, s.tickets, "navigate('tickets')");
 
-      // Knowledge sources
+      // Knowledge sources — clicking navigates to Sources page
       const srcEl = document.getElementById('sources-list');
       if (srcEl) {
         if (s.sources && s.sources.length > 0) {
           srcEl.innerHTML = s.sources.map(src =>
-            `<div class="source-row">
+            `<div class="source-row" onclick="navigate('sources')" title="View sources">
               <span class="source-name">${src.source || 'manual'}</span>
               <span class="source-count">${src.count} chunk${src.count !== 1 ? 's' : ''}</span>
             </div>`
