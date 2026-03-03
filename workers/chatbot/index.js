@@ -4,6 +4,7 @@
 const ALLOWED_ORIGINS = new Set([
   "https://dahangroup.io",
   "https://www.dahangroup.io",
+  "https://vault.dahangroup.io",
 ]);
 
 function assertRequiredEnv(env, keys) {
@@ -178,6 +179,17 @@ function corsHeaders(request) {
     "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
     "Access-Control-Allow-Headers": "Content-Type, X-API-Key",
     Vary: "Origin",
+    ...SECURITY_HEADERS,
+  };
+}
+
+// Open CORS — used for public endpoints (widget-config, main chat) that must
+// work when the widget is embedded on any client's website domain.
+function openCorsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
+    "Access-Control-Allow-Headers": "Content-Type, X-API-Key",
     ...SECURITY_HEADERS,
   };
 }
@@ -753,9 +765,10 @@ function buildConfirmationEmail(clientName, ticketId) {
 
 export default {
   async fetch(request, env, ctx) {
-    // Preflight
+    // Preflight — use open CORS so widget.js works from any embedded domain.
+    // Admin endpoint security is enforced by X-API-Key, not by CORS origin.
     if (request.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders(request) });
+      return new Response(null, { headers: openCorsHeaders() });
     }
 
     // Health check
@@ -1874,6 +1887,48 @@ export default {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+    }
+
+    // ── /widget-config: public config fetched by widget.js on page load ─────────
+    // Returns display config (name, colors, greeting) for a given client_id.
+    // Uses open CORS — this endpoint is called from arbitrary client websites.
+    // No auth required — only public, non-sensitive data is returned.
+    if (url.pathname === "/widget-config") {
+      const clientIdParam = url.searchParams.get("client_id") || env.CLIENT_ID;
+      try {
+        const res = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${clientIdParam}&select=id,name,widget_config`,
+          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        );
+        const rows = res.ok ? await res.json() : [];
+        const row = rows?.[0] || {};
+        const widgetCfg = row.widget_config || {};
+        return new Response(JSON.stringify({
+          client_id:     clientIdParam,
+          display_name:  widgetCfg.display_name  || "ECHO",
+          brand_line:    widgetCfg.brand_line     || "AI Assistant",
+          greeting:      widgetCfg.greeting       || "Hi! I'm ECHO. How can I help you today?",
+          primary_color: widgetCfg.primary_color  || "#2d5a8f",
+          starters:      widgetCfg.starters       || null,
+          worker_url:    `https://dgc-chat-api.ericdahan10.workers.dev`,
+          api_key:       env.SITE_API_KEY || "",
+        }), {
+          headers: { "Content-Type": "application/json", ...openCorsHeaders() },
+        });
+      } catch (e) {
+        // Return safe defaults if Supabase is unavailable
+        return new Response(JSON.stringify({
+          client_id:     clientIdParam,
+          display_name:  "ECHO",
+          brand_line:    "AI Assistant",
+          greeting:      "Hi! I'm ECHO. How can I help you today?",
+          primary_color: "#2d5a8f",
+          worker_url:    `https://dgc-chat-api.ericdahan10.workers.dev`,
+          api_key:       env.SITE_API_KEY || "",
+        }), {
+          headers: { "Content-Type": "application/json", ...openCorsHeaders() },
         });
       }
     }
