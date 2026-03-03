@@ -884,7 +884,6 @@ export default {
         if (body.widget_config        !== undefined) patch.widget_config        = body.widget_config;
         if (body.notification_webhook !== undefined) patch.notification_webhook = body.notification_webhook;
         if (body.crm_config           !== undefined) patch.crm_config           = body.crm_config;
-        patch.updated_at = new Date().toISOString();
         // Use service_role key for writes so RLS doesn't block the PATCH
         const writeKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_KEY;
         const sbRes = await fetch(
