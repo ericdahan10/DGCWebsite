@@ -232,6 +232,10 @@ async function saveLeadToSupabase(leadData, qualification, env) {
 }
 
 async function sendProspectEmail(leadData, qualification, env) {
+  if (!leadData?.email) {
+    return { ok: false, error: "missing-recipient-email" };
+  }
+
   try {
     const emailBody =
       qualification.email ||
@@ -262,9 +266,25 @@ async function sendProspectEmail(leadData, qualification, env) {
       }
     }
 
-    console.log("Google Apps Script response:", response.status);
+    const responseText = await response.text();
+    let parsed;
+    try {
+      parsed = responseText ? JSON.parse(responseText) : null;
+    } catch (_) {
+      parsed = null;
+    }
+
+    const ok = response.ok && (!parsed || parsed.success !== false);
+    if (!ok) {
+      console.error("Google Apps Script email failed:", response.status, responseText || "(empty body)");
+      return { ok: false, status: response.status, body: responseText || null };
+    }
+
+    console.log("Google Apps Script email sent:", response.status);
+    return { ok: true, status: response.status };
   } catch (e) {
     console.error("Google Apps Script email failed:", e.message);
+    return { ok: false, error: e.message };
   }
 }
 
@@ -330,9 +350,16 @@ export default {
         );
       }
 
-      ctx.waitUntil(notifyOwner(leadData, qualification, env));
+      const skipOwnerNotification = leadData?.skip_owner_notification === true;
+      const skipSupabaseSave = leadData?.skip_supabase_save === true;
+
+      if (!skipOwnerNotification) {
+        ctx.waitUntil(notifyOwner(leadData, qualification, env));
+      }
       ctx.waitUntil(sendProspectEmail(leadData, qualification, env));
-      ctx.waitUntil(saveLeadToSupabase(leadData, qualification, env));
+      if (!skipSupabaseSave) {
+        ctx.waitUntil(saveLeadToSupabase(leadData, qualification, env));
+      }
 
       return new Response(
         JSON.stringify({

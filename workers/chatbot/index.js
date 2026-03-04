@@ -624,51 +624,61 @@ function buildChatContext(messages) {
     .join("\n");
 }
 
-// ── Formspree (lead notify) ───────────────────────────────────────────────────
+// ── Lead worker (qualification + email) ──────────────────────────────────────
 
-async function submitToFormspree(leadData, chatContext, env) {
+async function sendToLeadWorker(leadData, chatContext, env, clientId, options = {}) {
   try {
-    const res = await fetch(env.FORMSPREE_URL, {
+    if (!env.LEAD_WORKER_URL) {
+      console.error("Lead worker URL missing");
+      return { ok: false, error: "missing-lead-worker-url" };
+    }
+
+    const payload = {
+      name: leadData.name || "Chat visitor",
+      email: leadData.email,
+      phone: leadData.phone || "",
+      source: leadData.source || "AI Chatbot",
+      conversation: chatContext || leadData.conversation || leadData.message || "",
+      message: leadData.message || "",
+      company: leadData.company || "",
+      client_id: clientId || env.CLIENT_ID,
+      skip_owner_notification: !!options.skipOwnerNotification,
+      skip_supabase_save: !!options.skipSupabaseSave,
+    };
+
+    const requestInit = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Accept: "application/json",
+        "X-API-Key": env.SITE_API_KEY || "",
       },
-      body: JSON.stringify({
-        _replyto: env.ADMIN_EMAIL,
-        _subject: "New Chatbot Lead - DGC Website",
-        "Lead Name": leadData.name || "Not provided",
-        "Lead Email": leadData.email || "Not provided",
-        "Lead Phone": leadData.phone || "Not provided",
-        Source: "AI Chatbot",
-        Conversation: chatContext || "Lead captured via chat widget",
-      }),
-    });
-    console.log("Formspree status:", res.status);
-  } catch (e) {
-    console.error("Formspree submission failed:", e.message);
-  }
-}
+      body: JSON.stringify(payload),
+    };
 
-// ── Lead worker (qualification + email) ──────────────────────────────────────
+    const res =
+      env.LEAD_WORKER && typeof env.LEAD_WORKER.fetch === "function"
+        ? await env.LEAD_WORKER.fetch("https://lead-worker.internal/", requestInit)
+        : await fetch(env.LEAD_WORKER_URL, requestInit);
 
-async function sendToLeadWorker(leadData, chatContext, env, clientId) {
-  try {
-    const res = await fetch(env.LEAD_WORKER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: leadData.name || "Chat visitor",
-        email: leadData.email,
-        phone: leadData.phone || "",
-        source: "AI Chatbot",
-        conversation: chatContext || "",
-        client_id: clientId || env.CLIENT_ID,
-      }),
-    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Lead worker error:", res.status, errText);
+      return { ok: false, status: res.status, body: errText || null };
+    }
+
+    const bodyText = await res.text();
+    let parsed = null;
+    try { parsed = bodyText ? JSON.parse(bodyText) : null; } catch (_) {}
+
     console.log("Lead worker status:", res.status);
+    return {
+      ok: true,
+      status: res.status,
+      email_result: parsed?.email_result || null,
+    };
   } catch (e) {
     console.error("Lead worker call failed:", e.message);
+    return { ok: false, error: e.message };
   }
 }
 
@@ -1867,7 +1877,25 @@ export default {
           );
         }
 
-        return new Response(JSON.stringify({ success: true }), {
+        // Trigger lead-worker automation so submitter gets AI-crafted follow-up email.
+        // Supabase insert + client webhook are already handled above in this route.
+        const leadWorkerPromise = sendToLeadWorker({
+          name,
+          email,
+          phone,
+          company,
+          message,
+          source: source || "contact-form",
+        }, "", env, resolvedClientId, {
+          skipOwnerNotification: true,
+          skipSupabaseSave: true,
+        });
+
+        ctx.waitUntil(leadWorkerPromise);
+
+        return new Response(JSON.stringify({
+          success: true,
+        }), {
           headers: { "Content-Type": "application/json", ...openCorsHeaders() },
         });
       } catch (e) {
