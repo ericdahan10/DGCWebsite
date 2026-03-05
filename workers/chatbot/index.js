@@ -348,14 +348,21 @@ async function getSystemPrompt(clientId, env) {
     try {
       const res = await fetch(
         `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${resolvedId}&select=system_prompt`,
-        { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+        {
+          headers: {
+            apikey: env.SUPABASE_KEY,
+            Authorization: `Bearer ${env.SUPABASE_KEY}`,
+          },
+        },
       );
       if (res.ok) {
         const rows = await res.json();
         const custom = rows?.[0]?.system_prompt;
         if (custom && custom.trim()) persona = custom;
       }
-    } catch { /* fall back to hardcoded */ }
+    } catch {
+      /* fall back to hardcoded */
+    }
   }
   // Always append routing instructions — these are never editable via Settings
   return persona + ROUTING_INSTRUCTIONS;
@@ -402,13 +409,26 @@ function stripHtml(html) {
 // ── CSV line parser ───────────────────────────────────────────────────────────
 // Handles quoted fields and escaped quotes correctly.
 function parseCsvLine(line) {
-  const result = []; let cur = ""; let inQ = false;
+  const result = [];
+  let cur = "";
+  let inQ = false;
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
-    if (c === '"' && !inQ) { inQ = true; }
-    else if (c === '"' && inQ) { if (line[i + 1] === '"') { cur += '"'; i++; } else { inQ = false; } }
-    else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ""; }
-    else { cur += c; }
+    if (c === '"' && !inQ) {
+      inQ = true;
+    } else if (c === '"' && inQ) {
+      if (line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQ = false;
+      }
+    } else if (c === "," && !inQ) {
+      result.push(cur.trim());
+      cur = "";
+    } else {
+      cur += c;
+    }
   }
   result.push(cur.trim());
   return result;
@@ -423,9 +443,8 @@ async function ingestText(text, source, clientId, env, notes = null) {
   const chunks = chunkText(text.trim());
   let stored = 0;
   // Build prefix once — empty string if no notes so we don't inflate chunk size
-  const contextPrefix = notes && notes.trim()
-    ? `[Context: ${notes.trim()}]\n\n`
-    : "";
+  const contextPrefix =
+    notes && notes.trim() ? `[Context: ${notes.trim()}]\n\n` : "";
   for (const chunk of chunks) {
     if (chunk.trim().length < 20) continue;
     const content = contextPrefix + chunk;
@@ -448,7 +467,12 @@ async function getOrCreateConversation(visitorId, clientId, env) {
   // Look for an existing conversation for this visitor
   const res = await fetch(
     `${env.SUPABASE_URL}/rest/v1/conversations?visitor_id=eq.${encodeURIComponent(visitorId)}&client_id=eq.${clientId}&order=started_at.desc&limit=1`,
-    { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+    {
+      headers: {
+        apikey: env.SUPABASE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_KEY}`,
+      },
+    },
   );
   const rows = await res.json();
   if (Array.isArray(rows) && rows.length > 0) return rows[0].id;
@@ -472,15 +496,27 @@ async function getOrCreateConversation(visitorId, clientId, env) {
 async function fetchConversationHistory(conversationId, limit = 10, env) {
   const res = await fetch(
     `${env.SUPABASE_URL}/rest/v1/messages?conversation_id=eq.${conversationId}&order=created_at.asc&limit=${limit}`,
-    { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+    {
+      headers: {
+        apikey: env.SUPABASE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_KEY}`,
+      },
+    },
   );
   const rows = await res.json();
-  return Array.isArray(rows) ? rows.map((r) => ({ role: r.role, content: r.content })) : [];
+  return Array.isArray(rows)
+    ? rows.map((r) => ({ role: r.role, content: r.content }))
+    : [];
 }
 
 // Saves a user + assistant message pair and updates the conversation timestamp.
 // Runs in ctx.waitUntil — non-blocking, response is already sent by the time this runs.
-async function saveConversationTurn(conversationId, userMsg, assistantMsg, env) {
+async function saveConversationTurn(
+  conversationId,
+  userMsg,
+  assistantMsg,
+  env,
+) {
   const headers = {
     apikey: env.SUPABASE_KEY,
     Authorization: `Bearer ${env.SUPABASE_KEY}`,
@@ -490,12 +526,20 @@ async function saveConversationTurn(conversationId, userMsg, assistantMsg, env) 
   await fetch(`${env.SUPABASE_URL}/rest/v1/messages`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ conversation_id: conversationId, role: "user", content: userMsg }),
+    body: JSON.stringify({
+      conversation_id: conversationId,
+      role: "user",
+      content: userMsg,
+    }),
   });
   await fetch(`${env.SUPABASE_URL}/rest/v1/messages`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ conversation_id: conversationId, role: "assistant", content: assistantMsg }),
+    body: JSON.stringify({
+      conversation_id: conversationId,
+      role: "assistant",
+      content: assistantMsg,
+    }),
   });
   await fetch(
     `${env.SUPABASE_URL}/rest/v1/conversations?id=eq.${conversationId}`,
@@ -513,22 +557,32 @@ async function saveConversationTurn(conversationId, userMsg, assistantMsg, env) 
 // Fails silently — Apps Script remains the primary record, Supabase powers VAULT.
 async function saveTicketToSupabase(payload, env) {
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return;
-  const desc = payload.issueSummary || payload.issue_summary || "Support request from chat widget";
-  const name  = payload.clientName  || payload.visitor_name  || payload.name  || "";
-  const email = payload.clientEmail || payload.visitor_email || payload.email || "";
-  const phone = payload.clientPhone || payload.visitor_phone || payload.phone || "";
-  const ticketNum = payload.ticketId || payload.ticket_id || `TKT-${Date.now()}`;
-  await supabaseInsert("tickets", {
-    client_id:     payload.client_id || env.CLIENT_ID,
-    ticket_number: ticketNum,
-    visitor_name:  name,
-    visitor_email: email,
-    visitor_phone: phone,
-    urgency:       (payload.urgency || "medium").toLowerCase(),
-    subject:       desc.slice(0, 120),
-    description:   desc,
-    status:        "open",
-  }, env);
+  const desc =
+    payload.issueSummary ||
+    payload.issue_summary ||
+    "Support request from chat widget";
+  const name = payload.clientName || payload.visitor_name || payload.name || "";
+  const email =
+    payload.clientEmail || payload.visitor_email || payload.email || "";
+  const phone =
+    payload.clientPhone || payload.visitor_phone || payload.phone || "";
+  const ticketNum =
+    payload.ticketId || payload.ticket_id || `TKT-${Date.now()}`;
+  await supabaseInsert(
+    "tickets",
+    {
+      client_id: payload.client_id || env.CLIENT_ID,
+      ticket_number: ticketNum,
+      visitor_name: name,
+      visitor_email: email,
+      visitor_phone: phone,
+      urgency: (payload.urgency || "medium").toLowerCase(),
+      subject: desc.slice(0, 120),
+      description: desc,
+      status: "open",
+    },
+    env,
+  );
 }
 
 // ── RAG retrieval ─────────────────────────────────────────────────────────────
@@ -626,7 +680,13 @@ function buildChatContext(messages) {
 
 // ── Lead worker (qualification + email) ──────────────────────────────────────
 
-async function sendToLeadWorker(leadData, chatContext, env, clientId, options = {}) {
+async function sendToLeadWorker(
+  leadData,
+  chatContext,
+  env,
+  clientId,
+  options = {},
+) {
   try {
     if (!env.LEAD_WORKER_URL) {
       console.error("Lead worker URL missing");
@@ -638,7 +698,8 @@ async function sendToLeadWorker(leadData, chatContext, env, clientId, options = 
       email: leadData.email,
       phone: leadData.phone || "",
       source: leadData.source || "AI Chatbot",
-      conversation: chatContext || leadData.conversation || leadData.message || "",
+      conversation:
+        chatContext || leadData.conversation || leadData.message || "",
       message: leadData.message || "",
       company: leadData.company || "",
       client_id: clientId || env.CLIENT_ID,
@@ -657,7 +718,10 @@ async function sendToLeadWorker(leadData, chatContext, env, clientId, options = 
 
     const res =
       env.LEAD_WORKER && typeof env.LEAD_WORKER.fetch === "function"
-        ? await env.LEAD_WORKER.fetch("https://lead-worker.internal/", requestInit)
+        ? await env.LEAD_WORKER.fetch(
+            "https://lead-worker.internal/",
+            requestInit,
+          )
         : await fetch(env.LEAD_WORKER_URL, requestInit);
 
     if (!res.ok) {
@@ -668,7 +732,9 @@ async function sendToLeadWorker(leadData, chatContext, env, clientId, options = 
 
     const bodyText = await res.text();
     let parsed = null;
-    try { parsed = bodyText ? JSON.parse(bodyText) : null; } catch (_) {}
+    try {
+      parsed = bodyText ? JSON.parse(bodyText) : null;
+    } catch (_) {}
 
     console.log("Lead worker status:", res.status);
     return {
@@ -799,44 +865,73 @@ export default {
       async function fetchClientRow(key) {
         const bySlug = await fetch(
           `${env.SUPABASE_URL}/rest/v1/clients?slug=eq.${encodeURIComponent(key)}&select=id,name,slug,widget_config`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
         const slugRows = bySlug.ok ? await bySlug.json() : [];
         if (slugRows.length) return slugRows[0];
         // Fall back to UUID match
         const byId = await fetch(
           `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${encodeURIComponent(key)}&select=id,name,slug,widget_config`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
         const idRows = byId.ok ? await byId.json() : [];
         return idRows[0] || null;
       }
       const WIDGET_DEFAULTS = {
-        display_name:  "ECHO",
-        brand_line:    "AI Assistant",
-        greeting:      "Hi! I'm ECHO. How can I help you today?",
+        display_name: "ECHO",
+        brand_line: "AI Assistant",
+        greeting: "Hi! I'm ECHO. How can I help you today?",
         primary_color: "#2d5a8f",
-        theme:         "light",
-        worker_url:    "https://dgc-chat-api.ericdahan10.workers.dev",
-        api_key:       env.SITE_API_KEY || "",
+        theme: "light",
+        worker_url: "https://dgc-chat-api.ericdahan10.workers.dev",
+        api_key: env.SITE_API_KEY || "",
       };
       try {
         const row = await fetchClientRow(slugOrId);
         const widgetCfg = row?.widget_config || {};
-        return new Response(JSON.stringify({
-          client_id:     row?.id || slugOrId,
-          display_name:  widgetCfg.display_name  || WIDGET_DEFAULTS.display_name,
-          brand_line:    widgetCfg.brand_line     || WIDGET_DEFAULTS.brand_line,
-          greeting:      widgetCfg.greeting       || WIDGET_DEFAULTS.greeting,
-          primary_color: widgetCfg.primary_color  || WIDGET_DEFAULTS.primary_color,
-          theme:         widgetCfg.theme          || WIDGET_DEFAULTS.theme,
-          starters:      widgetCfg.starters       || null,
-          worker_url:    WIDGET_DEFAULTS.worker_url,
-          api_key:       WIDGET_DEFAULTS.api_key,
-        }), { headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...openCorsHeaders() } });
+        return new Response(
+          JSON.stringify({
+            client_id: row?.id || slugOrId,
+            display_name:
+              widgetCfg.display_name || WIDGET_DEFAULTS.display_name,
+            brand_line: widgetCfg.brand_line || WIDGET_DEFAULTS.brand_line,
+            greeting: widgetCfg.greeting || WIDGET_DEFAULTS.greeting,
+            primary_color:
+              widgetCfg.primary_color || WIDGET_DEFAULTS.primary_color,
+            theme: widgetCfg.theme || WIDGET_DEFAULTS.theme,
+            starters: widgetCfg.starters || null,
+            worker_url: WIDGET_DEFAULTS.worker_url,
+            api_key: WIDGET_DEFAULTS.api_key,
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store",
+              ...openCorsHeaders(),
+            },
+          },
+        );
       } catch (e) {
-        return new Response(JSON.stringify({ ...WIDGET_DEFAULTS, client_id: slugOrId }),
-          { headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...openCorsHeaders() } });
+        return new Response(
+          JSON.stringify({ ...WIDGET_DEFAULTS, client_id: slugOrId }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store",
+              ...openCorsHeaders(),
+            },
+          },
+        );
       }
     }
 
@@ -844,17 +939,39 @@ export default {
     if (url.pathname === "/clients-list") {
       const key = request.headers.get("X-API-Key");
       if (!key || key !== env.SITE_API_KEY) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
+        });
       }
       try {
         const res = await fetch(
           `${env.SUPABASE_URL}/rest/v1/clients?select=id,name,slug&order=name.asc`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
         const clients = res.ok ? await res.json() : [];
-        return new Response(JSON.stringify({ clients }), { headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+        return new Response(JSON.stringify({ clients }), {
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
+        });
       } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
+        });
       }
     }
 
@@ -862,26 +979,51 @@ export default {
     if (url.pathname === "/client-settings-get") {
       const key = request.headers.get("X-API-Key");
       if (!key || key !== env.SITE_API_KEY) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
+        });
       }
       try {
         const body = await request.json();
         const clientId = body.client_id || env.CLIENT_ID;
         const res = await fetch(
           `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${clientId}&select=id,name,slug,widget_config,notification_webhook,crm_config`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
         const rows = res.ok ? await res.json() : [];
         const row = rows?.[0] || {};
-        return new Response(JSON.stringify({
-          client_id:            row.id           || clientId,
-          slug:                 row.slug          || "",
-          widget_config:        row.widget_config || {},
-          notification_webhook: row.notification_webhook || "",
-          crm_config:           row.crm_config    || { type: "none" },
-        }), { headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+        return new Response(
+          JSON.stringify({
+            client_id: row.id || clientId,
+            slug: row.slug || "",
+            widget_config: row.widget_config || {},
+            notification_webhook: row.notification_webhook || "",
+            crm_config: row.crm_config || { type: "none" },
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
+          },
+        );
       } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
+        });
       }
     }
 
@@ -889,15 +1031,23 @@ export default {
     if (url.pathname === "/client-settings-save") {
       const key = request.headers.get("X-API-Key");
       if (!key || key !== env.SITE_API_KEY) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
+        });
       }
       try {
         const body = await request.json();
         const clientId = body.client_id || env.CLIENT_ID;
         const patch = {};
-        if (body.widget_config        !== undefined) patch.widget_config        = body.widget_config;
-        if (body.notification_webhook !== undefined) patch.notification_webhook = body.notification_webhook;
-        if (body.crm_config           !== undefined) patch.crm_config           = body.crm_config;
+        if (body.widget_config !== undefined)
+          patch.widget_config = body.widget_config;
+        if (body.notification_webhook !== undefined)
+          patch.notification_webhook = body.notification_webhook;
+        if (body.crm_config !== undefined) patch.crm_config = body.crm_config;
         // Use service_role key for writes so RLS doesn't block the PATCH
         const writeKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_KEY;
         const sbRes = await fetch(
@@ -915,11 +1065,33 @@ export default {
         );
         if (!sbRes.ok) {
           const errText = await sbRes.text();
-          return new Response(JSON.stringify({ error: `Supabase error ${sbRes.status}: ${errText}` }), { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+          return new Response(
+            JSON.stringify({
+              error: `Supabase error ${sbRes.status}: ${errText}`,
+            }),
+            {
+              status: 502,
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders(request),
+              },
+            },
+          );
         }
-        return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+        return new Response(JSON.stringify({ success: true }), {
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
+        });
       } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
+        });
       }
     }
 
@@ -946,24 +1118,48 @@ export default {
         const validUser = env.VAULT_USERNAME || "admin";
         const validPass = env.VAULT_PASSWORD;
         if (!validPass) {
-          return new Response(JSON.stringify({ error: "Login not configured — set VAULT_PASSWORD secret in Cloudflare." }), {
-            status: 500,
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-          });
+          return new Response(
+            JSON.stringify({
+              error:
+                "Login not configured — set VAULT_PASSWORD secret in Cloudflare.",
+            }),
+            {
+              status: 500,
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders(request),
+              },
+            },
+          );
         }
         if (username === validUser && password === validPass) {
-          return new Response(JSON.stringify({ ok: true, key: env.SITE_API_KEY }), {
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-          });
+          return new Response(
+            JSON.stringify({ ok: true, key: env.SITE_API_KEY }),
+            {
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders(request),
+              },
+            },
+          );
         }
-        return new Response(JSON.stringify({ error: "Invalid username or password." }), {
-          status: 401,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-        });
+        return new Response(
+          JSON.stringify({ error: "Invalid username or password." }),
+          {
+            status: 401,
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
+          },
+        );
       } catch {
         return new Response(JSON.stringify({ error: "Bad request" }), {
           status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1031,44 +1227,71 @@ export default {
     // ── /ingest-url: fetch a webpage, strip HTML, and ingest as knowledge ────
     if (url.pathname === "/ingest-url") {
       try {
-        const { url: pageUrl, source = "website", notes, client_id = env.CLIENT_ID } = await request.json();
+        const {
+          url: pageUrl,
+          source = "website",
+          notes,
+          client_id = env.CLIENT_ID,
+        } = await request.json();
         if (!pageUrl) {
           return new Response(JSON.stringify({ error: "url field required" }), {
             status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
           });
         }
         // Fetch the page with full browser-like headers to pass bot detection
         const pageRes = await fetch(pageUrl, {
           headers: {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            Accept:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
             "Accept-Encoding": "gzip, deflate, br",
             "Cache-Control": "no-cache",
           },
         });
         if (!pageRes.ok) {
-          const hint = pageRes.status === 403 || pageRes.status === 503
-            ? " The site is blocking automated access (e.g. Cloudflare protection). For your own site, use the Text tab and paste the content directly."
-            : " Ensure the URL is public and accessible.";
-          throw new Error(`Could not fetch page (HTTP ${pageRes.status}).${hint}`);
+          const hint =
+            pageRes.status === 403 || pageRes.status === 503
+              ? " The site is blocking automated access (e.g. Cloudflare protection). For your own site, use the Text tab and paste the content directly."
+              : " Ensure the URL is public and accessible.";
+          throw new Error(
+            `Could not fetch page (HTTP ${pageRes.status}).${hint}`,
+          );
         }
         const html = await pageRes.text();
         const text = stripHtml(html);
         if (text.length < 50) {
-          throw new Error("Page returned too little text. The site may block scrapers — try pasting the content directly in the Text tab instead.");
+          throw new Error(
+            "Page returned too little text. The site may block scrapers — try pasting the content directly in the Text tab instead.",
+          );
         }
         const stored = await ingestText(text, source, client_id, env, notes);
         return new Response(
-          JSON.stringify({ success: true, chunks_stored: stored, url: pageUrl }),
-          { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
+          JSON.stringify({
+            success: true,
+            chunks_stored: stored,
+            url: pageUrl,
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
+          },
         );
       } catch (e) {
         console.error("Ingest-url error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1076,17 +1299,27 @@ export default {
     // ── /ingest-youtube: extract transcript from a YouTube video and ingest ──
     if (url.pathname === "/ingest-youtube") {
       try {
-        const { url: ytUrl, notes, client_id = env.CLIENT_ID } = await request.json();
+        const {
+          url: ytUrl,
+          notes,
+          client_id = env.CLIENT_ID,
+        } = await request.json();
         if (!ytUrl) {
           return new Response(JSON.stringify({ error: "url field required" }), {
             status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
           });
         }
 
         // Extract the video ID from any YouTube URL format
-        const idMatch = ytUrl.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
-        if (!idMatch) throw new Error("Invalid YouTube URL — could not extract video ID.");
+        const idMatch = ytUrl.match(
+          /(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/,
+        );
+        if (!idMatch)
+          throw new Error("Invalid YouTube URL — could not extract video ID.");
         const videoId = idMatch[1];
 
         // Attempt 1: auto-generated captions via YouTube's timedtext API
@@ -1108,36 +1341,62 @@ export default {
                 .trim();
             }
           }
-        } catch (_) { /* fall through */ }
+        } catch (_) {
+          /* fall through */
+        }
 
         // Attempt 2: fall back to video title + description via oEmbed
         if (!transcript) {
           const oembedRes = await fetch(
             `https://www.youtube.com/oembed?url=${encodeURIComponent(ytUrl)}&format=json`,
           );
-          if (!oembedRes.ok) throw new Error("Could not retrieve YouTube content. Ensure the video is public.");
+          if (!oembedRes.ok)
+            throw new Error(
+              "Could not retrieve YouTube content. Ensure the video is public.",
+            );
           const meta = await oembedRes.json();
           title = meta.title || "";
           transcript = `Video Title: ${meta.title}\nChannel: ${meta.author_name}`;
         } else {
           // Also grab title for the response label
           try {
-            const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(ytUrl)}&format=json`);
-            if (oembedRes.ok) { const meta = await oembedRes.json(); title = meta.title || ""; }
-          } catch (_) { /* non-fatal */ }
+            const oembedRes = await fetch(
+              `https://www.youtube.com/oembed?url=${encodeURIComponent(ytUrl)}&format=json`,
+            );
+            if (oembedRes.ok) {
+              const meta = await oembedRes.json();
+              title = meta.title || "";
+            }
+          } catch (_) {
+            /* non-fatal */
+          }
         }
 
         const source = `youtube-${videoId}`;
-        const stored = await ingestText(transcript, source, client_id, env, notes);
+        const stored = await ingestText(
+          transcript,
+          source,
+          client_id,
+          env,
+          notes,
+        );
         return new Response(
           JSON.stringify({ success: true, chunks_stored: stored, title }),
-          { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
+          },
         );
       } catch (e) {
         console.error("Ingest-youtube error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1145,17 +1404,28 @@ export default {
     // ── /ingest-sheet: fetch a public Google Sheet as CSV and ingest ──────────
     if (url.pathname === "/ingest-sheet") {
       try {
-        const { url: sheetUrl, source = "google-sheets", notes, client_id = env.CLIENT_ID } = await request.json();
+        const {
+          url: sheetUrl,
+          source = "google-sheets",
+          notes,
+          client_id = env.CLIENT_ID,
+        } = await request.json();
         if (!sheetUrl) {
           return new Response(JSON.stringify({ error: "url field required" }), {
             status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
           });
         }
 
         // Extract the spreadsheet ID and optional gid (tab ID)
         const idMatch = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-        if (!idMatch) throw new Error("Invalid Google Sheets URL. Copy the URL directly from your browser.");
+        if (!idMatch)
+          throw new Error(
+            "Invalid Google Sheets URL. Copy the URL directly from your browser.",
+          );
         const sheetId = idMatch[1];
         const gidMatch = sheetUrl.match(/[#&]gid=(\d+)/);
         const gid = gidMatch ? gidMatch[1] : "0";
@@ -1164,32 +1434,48 @@ export default {
         const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
         const csvRes = await fetch(csvUrl);
         if (!csvRes.ok) {
-          throw new Error("Could not access the sheet. Ensure it is shared as 'Anyone with the link can view'.");
+          throw new Error(
+            "Could not access the sheet. Ensure it is shared as 'Anyone with the link can view'.",
+          );
         }
 
         const csv = await csvRes.text();
 
         // Convert CSV rows to "Header: value | Header: value" format for readability
-        const lines = csv.split("\n").map((l) => l.trim()).filter((l) => l);
-        if (lines.length < 2) throw new Error("Sheet appears to be empty or has only headers.");
+        const lines = csv
+          .split("\n")
+          .map((l) => l.trim())
+          .filter((l) => l);
+        if (lines.length < 2)
+          throw new Error("Sheet appears to be empty or has only headers.");
 
         const headers = parseCsvLine(lines[0]);
         const rows = lines.slice(1).map((line) => {
           const vals = parseCsvLine(line);
-          return headers.map((h, i) => `${h}: ${vals[i] || ""}`.trim()).join(" | ");
+          return headers
+            .map((h, i) => `${h}: ${vals[i] || ""}`.trim())
+            .join(" | ");
         });
         const text = rows.join("\n");
 
         const stored = await ingestText(text, source, client_id, env, notes);
         return new Response(
           JSON.stringify({ success: true, chunks_stored: stored }),
-          { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
+          },
         );
       } catch (e) {
         console.error("Ingest-sheet error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1197,17 +1483,29 @@ export default {
     // ── /stats: full analytics snapshot — chunks, conversations, leads, tickets ─
     if (url.pathname === "/stats") {
       try {
-        const { client_id = env.CLIENT_ID } = await request.json().catch(() => ({}));
+        const { client_id = env.CLIENT_ID } = await request
+          .json()
+          .catch(() => ({}));
         const clientId = client_id;
 
         // Count knowledge chunks for this client
-        const chunksCount = await supabaseCount("knowledge_chunks", "client_id", clientId, env);
+        const chunksCount = await supabaseCount(
+          "knowledge_chunks",
+          "client_id",
+          clientId,
+          env,
+        );
 
         // Count distinct knowledge sources and extract descriptions from first chunk per source.
         // We fetch source + first ~400 chars of content to detect [Context: ...] prefixes.
         const sourcesRes = await fetch(
           `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=source,content&client_id=eq.${clientId}&order=created_at.asc`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
         let sources = [];
         if (sourcesRes.ok) {
@@ -1217,34 +1515,56 @@ export default {
           rows.forEach((r) => {
             if (!sourceMeta[r.source]) {
               // Try to extract [Context: ...] prefix from this (first) chunk for this source
-              const ctxMatch = (r.content || "").match(/^\[Context:\s*([\s\S]*?)\]\n\n/);
-              sourceMeta[r.source] = { count: 0, description: ctxMatch ? ctxMatch[1].trim() : null };
+              const ctxMatch = (r.content || "").match(
+                /^\[Context:\s*([\s\S]*?)\]\n\n/,
+              );
+              sourceMeta[r.source] = {
+                count: 0,
+                description: ctxMatch ? ctxMatch[1].trim() : null,
+              };
             }
             sourceMeta[r.source].count++;
           });
           sources = Object.entries(sourceMeta)
-            .map(([source, meta]) => ({ source, count: meta.count, description: meta.description }))
+            .map(([source, meta]) => ({
+              source,
+              count: meta.count,
+              description: meta.description,
+            }))
             .sort((a, b) => b.count - a.count);
         }
 
         // Conversation count from Supabase
-        const conversationsCount = await supabaseCount("conversations", "client_id", clientId, env);
+        const conversationsCount = await supabaseCount(
+          "conversations",
+          "client_id",
+          clientId,
+          env,
+        );
 
         // Lead stats — fetch score_label, status, source for all leads, compute breakdowns in JS
         const leadsRes = await fetch(
           `${env.SUPABASE_URL}/rest/v1/leads?select=score_label,status,source&client_id=eq.${clientId}`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
-        let leadsTotal = 0, leadsByScore = {}, leadsByStatus = {}, leadsBySource = {};
+        let leadsTotal = 0,
+          leadsByScore = {},
+          leadsByStatus = {},
+          leadsBySource = {};
         if (leadsRes.ok) {
           const rows = await leadsRes.json();
           leadsTotal = rows.length;
-          rows.forEach(r => {
-            const sl = r.score_label || 'Unknown';
+          rows.forEach((r) => {
+            const sl = r.score_label || "Unknown";
             leadsByScore[sl] = (leadsByScore[sl] || 0) + 1;
-            const st = r.status || 'new';
+            const st = r.status || "new";
             leadsByStatus[st] = (leadsByStatus[st] || 0) + 1;
-            const src = r.source || 'unknown';
+            const src = r.source || "unknown";
             leadsBySource[src] = (leadsBySource[src] || 0) + 1;
           });
         }
@@ -1252,16 +1572,23 @@ export default {
         // Ticket stats — fetch status and urgency for all tickets, compute breakdowns in JS
         const ticketsRes = await fetch(
           `${env.SUPABASE_URL}/rest/v1/tickets?select=status,urgency&client_id=eq.${clientId}`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
-        let ticketsTotal = 0, ticketsByStatus = {}, ticketsByUrgency = {};
+        let ticketsTotal = 0,
+          ticketsByStatus = {},
+          ticketsByUrgency = {};
         if (ticketsRes.ok) {
           const rows = await ticketsRes.json();
           ticketsTotal = rows.length;
-          rows.forEach(r => {
-            const st = r.status || 'open';
+          rows.forEach((r) => {
+            const st = r.status || "open";
             ticketsByStatus[st] = (ticketsByStatus[st] || 0) + 1;
-            const urg = r.urgency || 'medium';
+            const urg = r.urgency || "medium";
             ticketsByUrgency[urg] = (ticketsByUrgency[urg] || 0) + 1;
           });
         }
@@ -1279,13 +1606,21 @@ export default {
             ticketsByUrgency,
             sources,
           }),
-          { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
+          },
         );
       } catch (e) {
         console.error("Stats error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1293,48 +1628,68 @@ export default {
     // ── /analytics-conversations: list recent conversations with visitor info ───
     if (url.pathname === "/analytics-conversations") {
       try {
-        const { client_id = env.CLIENT_ID } = await request.json().catch(() => ({}));
+        const { client_id = env.CLIENT_ID } = await request
+          .json()
+          .catch(() => ({}));
         const clientId = client_id;
         const limit = parseInt(url.searchParams.get("limit") || "50", 10);
 
         // Fetch recent conversations newest-first
         const convosRes = await fetch(
           `${env.SUPABASE_URL}/rest/v1/conversations?client_id=eq.${clientId}&order=started_at.desc&limit=${limit}`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
         if (!convosRes.ok) throw new Error("Failed to fetch conversations");
         const convos = await convosRes.json();
 
         if (convos.length === 0) {
-          return new Response(JSON.stringify({ conversations: [] }),
-            { headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+          return new Response(JSON.stringify({ conversations: [] }), {
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
+          });
         }
 
         // Batch-fetch all messages for all conversations in one request
         // This is far more efficient than N individual supabaseCount calls
-        const convoIds = convos.map(c => c.id).join(",");
+        const convoIds = convos.map((c) => c.id).join(",");
         const msgsRes = await fetch(
           `${env.SUPABASE_URL}/rest/v1/messages?conversation_id=in.(${convoIds})&order=created_at.asc`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
         const allMsgs = msgsRes.ok ? await msgsRes.json() : [];
 
         // Group messages by conversation_id
         const msgsByConvo = {};
-        allMsgs.forEach(m => {
-          if (!msgsByConvo[m.conversation_id]) msgsByConvo[m.conversation_id] = [];
+        allMsgs.forEach((m) => {
+          if (!msgsByConvo[m.conversation_id])
+            msgsByConvo[m.conversation_id] = [];
           msgsByConvo[m.conversation_id].push(m);
         });
 
         // Build enriched conversation objects
-        const results = convos.map(c => {
+        const results = convos.map((c) => {
           const msgs = msgsByConvo[c.id] || [];
 
           // Scan assistant messages for [LEAD_DATA] JSON to extract visitor name/email
-          let visitor_name = null, visitor_email = null;
+          let visitor_name = null,
+            visitor_email = null;
           for (const m of msgs) {
             if (m.role === "assistant") {
-              const match = (m.content || "").match(/\[LEAD_DATA\]([\s\S]*?)\[\/LEAD_DATA\]/);
+              const match = (m.content || "").match(
+                /\[LEAD_DATA\]([\s\S]*?)\[\/LEAD_DATA\]/,
+              );
               if (match) {
                 try {
                   const lead = JSON.parse(match[1]);
@@ -1347,8 +1702,10 @@ export default {
           }
 
           // First user message as a preview (fallback when no lead name available)
-          const firstUserMsg = msgs.find(m => m.role === "user");
-          const preview = firstUserMsg ? (firstUserMsg.content || "").slice(0, 100) : null;
+          const firstUserMsg = msgs.find((m) => m.role === "user");
+          const preview = firstUserMsg
+            ? (firstUserMsg.content || "").slice(0, 100)
+            : null;
 
           return {
             id: c.id,
@@ -1362,14 +1719,19 @@ export default {
           };
         });
 
-        return new Response(
-          JSON.stringify({ conversations: results }),
-          { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
-        );
+        return new Response(JSON.stringify({ conversations: results }), {
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
+        });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1379,25 +1741,41 @@ export default {
       try {
         const conversationId = url.searchParams.get("id");
         if (!conversationId) {
-          return new Response(JSON.stringify({ error: "id query param required" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-          });
+          return new Response(
+            JSON.stringify({ error: "id query param required" }),
+            {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders(request),
+              },
+            },
+          );
         }
         const msgsRes = await fetch(
           `${env.SUPABASE_URL}/rest/v1/messages?conversation_id=eq.${conversationId}&order=created_at.asc`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
         if (!msgsRes.ok) throw new Error("Failed to fetch messages");
         const messages = await msgsRes.json();
-        return new Response(
-          JSON.stringify({ messages }),
-          { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
-        );
+        return new Response(JSON.stringify({ messages }), {
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
+        });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1409,56 +1787,78 @@ export default {
     // This is how admins edit context after ingest without re-ingesting.
     if (url.pathname === "/source-context-update") {
       try {
-        const { source, context, client_id = env.CLIENT_ID } = await request.json();
+        const {
+          source,
+          context,
+          client_id = env.CLIENT_ID,
+        } = await request.json();
         if (!source) {
-          return new Response(JSON.stringify({ error: "source field required" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-          });
+          return new Response(
+            JSON.stringify({ error: "source field required" }),
+            {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders(request),
+              },
+            },
+          );
         }
 
         // Fetch all chunks for this source
         const fetchRes = await fetch(
           `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=id,content&client_id=eq.${client_id}&source=eq.${encodeURIComponent(source)}`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
         if (!fetchRes.ok) throw new Error("Failed to fetch chunks for source");
         const chunks = await fetchRes.json();
 
-        const newPrefix = context && context.trim()
-          ? `[Context: ${context.trim()}]\n\n`
-          : "";
+        const newPrefix =
+          context && context.trim() ? `[Context: ${context.trim()}]\n\n` : "";
         const ctxRegex = /^\[Context:\s*[\s\S]*?\]\n\n/;
 
         // Update each chunk: strip old prefix, add new one
         let updated = 0;
-        await Promise.all(chunks.map(async (chunk) => {
-          const stripped = (chunk.content || "").replace(ctxRegex, "");
-          const newContent = newPrefix + stripped;
-          const patchRes = await fetch(
-            `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?id=eq.${chunk.id}`,
-            {
-              method: "PATCH",
-              headers: {
-                apikey: env.SUPABASE_KEY,
-                Authorization: `Bearer ${env.SUPABASE_KEY}`,
-                "Content-Type": "application/json",
-                Prefer: "return=minimal",
+        await Promise.all(
+          chunks.map(async (chunk) => {
+            const stripped = (chunk.content || "").replace(ctxRegex, "");
+            const newContent = newPrefix + stripped;
+            const patchRes = await fetch(
+              `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?id=eq.${chunk.id}`,
+              {
+                method: "PATCH",
+                headers: {
+                  apikey: env.SUPABASE_KEY,
+                  Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                  "Content-Type": "application/json",
+                  Prefer: "return=minimal",
+                },
+                body: JSON.stringify({ content: newContent }),
               },
-              body: JSON.stringify({ content: newContent }),
-            },
-          );
-          if (patchRes.ok) updated++;
-        }));
+            );
+            if (patchRes.ok) updated++;
+          }),
+        );
 
         return new Response(JSON.stringify({ updated }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       } catch (e) {
         console.error("Source-context-update error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1470,10 +1870,16 @@ export default {
       try {
         const { source, client_id = env.CLIENT_ID } = await request.json();
         if (!source) {
-          return new Response(JSON.stringify({ error: "source field required" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-          });
+          return new Response(
+            JSON.stringify({ error: "source field required" }),
+            {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders(request),
+              },
+            },
+          );
         }
         const res = await fetch(
           `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?client_id=eq.${client_id}&source=eq.${encodeURIComponent(source)}`,
@@ -1492,13 +1898,19 @@ export default {
           throw new Error(`Supabase delete failed (${res.status}): ${err}`);
         }
         return new Response(JSON.stringify({ success: true }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       } catch (e) {
         console.error("Delete-source error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1509,13 +1921,20 @@ export default {
     if (url.pathname === "/debug-rag") {
       const report = { clientId: env.CLIENT_ID, steps: [] };
       try {
-        const testQuery = (await request.json().catch(() => ({}))).query || "what are the three pillars of DGC";
+        const testQuery =
+          (await request.json().catch(() => ({}))).query ||
+          "what are the three pillars of DGC";
         report.query = testQuery;
 
         // Step 1 — direct REST query: confirm chunks exist for this client_id
         const chunkRes = await fetch(
           `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=id,source,content&client_id=eq.${env.CLIENT_ID}&limit=3`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
         const chunkData = await chunkRes.json();
         report.steps.push({
@@ -1523,7 +1942,10 @@ export default {
           status: chunkRes.status,
           count: Array.isArray(chunkData) ? chunkData.length : "error",
           samples: Array.isArray(chunkData)
-            ? chunkData.map((c) => ({ source: c.source, preview: (c.content || "").slice(0, 80) }))
+            ? chunkData.map((c) => ({
+                source: c.source,
+                preview: (c.content || "").slice(0, 80),
+              }))
             : chunkData,
         });
 
@@ -1531,7 +1953,11 @@ export default {
         let queryEmbedding = null;
         try {
           queryEmbedding = await embedText(testQuery, env);
-          report.steps.push({ step: "2_embed", status: "ok", dimensions: queryEmbedding.length });
+          report.steps.push({
+            step: "2_embed",
+            status: "ok",
+            dimensions: queryEmbedding.length,
+          });
         } catch (e) {
           report.steps.push({ step: "2_embed", error: e.message });
         }
@@ -1539,28 +1965,38 @@ export default {
         // Step 3 — call match_knowledge_chunks RPC with very low threshold and capture raw response
         if (queryEmbedding) {
           // Step 3 — call with correct param names (match_client_id, no threshold)
-          const rpcRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/match_knowledge_chunks`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: env.SUPABASE_KEY,
-              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+          const rpcRes = await fetch(
+            `${env.SUPABASE_URL}/rest/v1/rpc/match_knowledge_chunks`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+              },
+              body: JSON.stringify({
+                query_embedding: queryEmbedding,
+                match_count: 4,
+                match_client_id: env.CLIENT_ID,
+              }),
             },
-            body: JSON.stringify({
-              query_embedding: queryEmbedding,
-              match_count: 4,
-              match_client_id: env.CLIENT_ID,
-            }),
-          });
+          );
           const rpcText = await rpcRes.text();
           let rpcData;
-          try { rpcData = JSON.parse(rpcText); } catch { rpcData = rpcText; }
+          try {
+            rpcData = JSON.parse(rpcText);
+          } catch {
+            rpcData = rpcText;
+          }
           report.steps.push({
             step: "3_rpc_match_client_id",
             status: rpcRes.status,
             count: Array.isArray(rpcData) ? rpcData.length : "n/a",
             previews: Array.isArray(rpcData)
-              ? rpcData.map((c) => ({ source: c.source, preview: (c.content || "").slice(0, 80) }))
+              ? rpcData.map((c) => ({
+                  source: c.source,
+                  preview: (c.content || "").slice(0, 80),
+                }))
               : rpcData,
           });
         }
@@ -1568,7 +2004,10 @@ export default {
         report.fatal_error = e.message;
       }
       return new Response(JSON.stringify(report, null, 2), {
-        headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders(request),
+        },
       });
     }
 
@@ -1579,22 +2018,38 @@ export default {
         const visitorId = "debug-visitor-test-001";
 
         // Step 1 — try to create a conversation row
-        const createRes = await fetch(`${env.SUPABASE_URL}/rest/v1/conversations`, {
-          method: "POST",
-          headers: {
-            apikey: env.SUPABASE_KEY,
-            Authorization: `Bearer ${env.SUPABASE_KEY}`,
-            "Content-Type": "application/json",
-            Prefer: "return=representation",
+        const createRes = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/conversations`,
+          {
+            method: "POST",
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+              "Content-Type": "application/json",
+              Prefer: "return=representation",
+            },
+            body: JSON.stringify({
+              visitor_id: visitorId,
+              client_id: env.CLIENT_ID,
+            }),
           },
-          body: JSON.stringify({ visitor_id: visitorId, client_id: env.CLIENT_ID }),
-        });
+        );
         const createText = await createRes.text();
         let createData;
-        try { createData = JSON.parse(createText); } catch { createData = createText; }
-        report.steps.push({ step: "1_create_conversation", status: createRes.status, result: createData });
+        try {
+          createData = JSON.parse(createText);
+        } catch {
+          createData = createText;
+        }
+        report.steps.push({
+          step: "1_create_conversation",
+          status: createRes.status,
+          result: createData,
+        });
 
-        const conversationId = Array.isArray(createData) ? createData[0]?.id : createData?.id;
+        const conversationId = Array.isArray(createData)
+          ? createData[0]?.id
+          : createData?.id;
 
         if (conversationId) {
           // Step 2 — insert a test message
@@ -1606,29 +2061,56 @@ export default {
               "Content-Type": "application/json",
               Prefer: "return=minimal",
             },
-            body: JSON.stringify({ conversation_id: conversationId, role: "user", content: "debug test message" }),
+            body: JSON.stringify({
+              conversation_id: conversationId,
+              role: "user",
+              content: "debug test message",
+            }),
           });
-          report.steps.push({ step: "2_insert_message", status: msgRes.status });
+          report.steps.push({
+            step: "2_insert_message",
+            status: msgRes.status,
+          });
 
           // Step 3 — fetch messages back
           const fetchRes = await fetch(
             `${env.SUPABASE_URL}/rest/v1/messages?conversation_id=eq.${conversationId}&order=created_at.asc`,
-            { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+            {
+              headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+              },
+            },
           );
           const fetchData = await fetchRes.json();
-          report.steps.push({ step: "3_fetch_messages", status: fetchRes.status, count: Array.isArray(fetchData) ? fetchData.length : "error", result: fetchData });
+          report.steps.push({
+            step: "3_fetch_messages",
+            status: fetchRes.status,
+            count: Array.isArray(fetchData) ? fetchData.length : "error",
+            result: fetchData,
+          });
 
           // Clean up test data
-          await fetch(`${env.SUPABASE_URL}/rest/v1/conversations?id=eq.${conversationId}`, {
-            method: "DELETE",
-            headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}`, Prefer: "return=minimal" },
-          });
+          await fetch(
+            `${env.SUPABASE_URL}/rest/v1/conversations?id=eq.${conversationId}`,
+            {
+              method: "DELETE",
+              headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                Prefer: "return=minimal",
+              },
+            },
+          );
         }
       } catch (e) {
         report.fatal_error = e.message;
       }
       return new Response(JSON.stringify(report, null, 2), {
-        headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders(request),
+        },
       });
     }
 
@@ -1637,7 +2119,9 @@ export default {
     // Used by the VAULT Tickets page to render the ticket list.
     if (url.pathname === "/tickets") {
       try {
-        const { client_id = env.CLIENT_ID } = await request.json().catch(() => ({}));
+        const { client_id = env.CLIENT_ID } = await request
+          .json()
+          .catch(() => ({}));
         const status = url.searchParams.get("status");
         let query = `${env.SUPABASE_URL}/rest/v1/tickets?client_id=eq.${client_id}&order=created_at.desc`;
         if (status) query += `&status=eq.${encodeURIComponent(status)}`;
@@ -1650,17 +2134,25 @@ export default {
         });
         if (!res.ok) {
           const err = await res.text();
-          throw new Error(`Supabase tickets fetch failed (${res.status}): ${err}`);
+          throw new Error(
+            `Supabase tickets fetch failed (${res.status}): ${err}`,
+          );
         }
         const tickets = await res.json();
         return new Response(JSON.stringify({ tickets }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       } catch (e) {
         console.error("Tickets list error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1670,12 +2162,23 @@ export default {
     // Used by the VAULT Tickets page status dropdown.
     if (url.pathname === "/tickets-update") {
       try {
-        const { ticket_number, status, notes, client_id = env.CLIENT_ID } = await request.json();
+        const {
+          ticket_number,
+          status,
+          notes,
+          client_id = env.CLIENT_ID,
+        } = await request.json();
         if (!ticket_number) {
-          return new Response(JSON.stringify({ error: "ticket_number required" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-          });
+          return new Response(
+            JSON.stringify({ error: "ticket_number required" }),
+            {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders(request),
+              },
+            },
+          );
         }
         const patch = {};
         if (status) patch.status = status;
@@ -1697,16 +2200,24 @@ export default {
         );
         if (!res.ok) {
           const err = await res.text();
-          throw new Error(`Supabase ticket update failed (${res.status}): ${err}`);
+          throw new Error(
+            `Supabase ticket update failed (${res.status}): ${err}`,
+          );
         }
         return new Response(JSON.stringify({ success: true }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       } catch (e) {
         console.error("Tickets update error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1718,19 +2229,37 @@ export default {
     if (url.pathname === "/ticket-crm-push") {
       try {
         const body = await request.json();
-        const { ticket_number, visitor_name, visitor_email, description, urgency } = body;
+        const {
+          ticket_number,
+          visitor_name,
+          visitor_email,
+          description,
+          urgency,
+        } = body;
 
         if (!visitor_email) {
-          return new Response(JSON.stringify({ error: "visitor_email required for CRM push" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-          });
+          return new Response(
+            JSON.stringify({ error: "visitor_email required for CRM push" }),
+            {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders(request),
+              },
+            },
+          );
         }
         if (!env.HUBSPOT_ACCESS_TOKEN) {
-          return new Response(JSON.stringify({ error: "HUBSPOT_ACCESS_TOKEN not configured" }), {
-            status: 500,
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-          });
+          return new Response(
+            JSON.stringify({ error: "HUBSPOT_ACCESS_TOKEN not configured" }),
+            {
+              status: 500,
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders(request),
+              },
+            },
+          );
         }
 
         // Upsert contact by email
@@ -1745,21 +2274,25 @@ export default {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              inputs: [{
-                idProperty: "email",
-                properties: {
-                  email: visitor_email,
-                  firstname: firstName || "",
-                  lastname: lastName || "",
-                  hs_lead_status: "IN_PROGRESS",
+              inputs: [
+                {
+                  idProperty: "email",
+                  properties: {
+                    email: visitor_email,
+                    firstname: firstName || "",
+                    lastname: lastName || "",
+                    hs_lead_status: "IN_PROGRESS",
+                  },
                 },
-              }],
+              ],
             }),
           },
         );
         if (!upsertRes.ok) {
           const err = await upsertRes.text();
-          throw new Error(`HubSpot upsert failed (${upsertRes.status}): ${err}`);
+          throw new Error(
+            `HubSpot upsert failed (${upsertRes.status}): ${err}`,
+          );
         }
         const upsertData = await upsertRes.json();
         const contactId = upsertData?.results?.[0]?.id;
@@ -1783,10 +2316,17 @@ export default {
                 hs_note_body: noteBody,
                 hs_timestamp: Date.now().toString(),
               },
-              associations: [{
-                to: { id: contactId },
-                types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 202 }],
-              }],
+              associations: [
+                {
+                  to: { id: contactId },
+                  types: [
+                    {
+                      associationCategory: "HUBSPOT_DEFINED",
+                      associationTypeId: 202,
+                    },
+                  ],
+                },
+              ],
             }),
           });
         }
@@ -1803,19 +2343,31 @@ export default {
                 "Content-Type": "application/json",
                 Prefer: "return=minimal",
               },
-              body: JSON.stringify({ crm_pushed: true, updated_at: new Date().toISOString() }),
+              body: JSON.stringify({
+                crm_pushed: true,
+                updated_at: new Date().toISOString(),
+              }),
             },
           );
         }
 
-        return new Response(JSON.stringify({ success: true, contactId: contactId || null }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-        });
+        return new Response(
+          JSON.stringify({ success: true, contactId: contactId || null }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
+          },
+        );
       } catch (e) {
         console.error("Ticket CRM push error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1826,7 +2378,15 @@ export default {
     // No hardcoded email provider — each client controls their own routing.
     if (url.pathname === "/lead-capture") {
       try {
-        const { name, email, phone, company, message, source, client_id: incomingClientId } = await request.json();
+        const {
+          name,
+          email,
+          phone,
+          company,
+          message,
+          source,
+          client_id: incomingClientId,
+        } = await request.json();
 
         // Resolve the client — by slug or UUID, fall back to env default
         const slugOrId = incomingClientId || env.CLIENT_ID;
@@ -1836,27 +2396,42 @@ export default {
           for (const filter of [`slug=eq.${slugOrId}`, `id=eq.${slugOrId}`]) {
             const r = await fetch(
               `${env.SUPABASE_URL}/rest/v1/clients?${filter}&select=id,notification_webhook,crm_config`,
-              { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+              {
+                headers: {
+                  apikey: env.SUPABASE_KEY,
+                  Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                },
+              },
             );
             const rows = r.ok ? await r.json() : [];
-            if (rows.length) { clientRow = rows[0]; break; }
+            if (rows.length) {
+              clientRow = rows[0];
+              break;
+            }
           }
-        } catch (_) { /* non-fatal — still save the lead */ }
+        } catch (_) {
+          /* non-fatal — still save the lead */
+        }
 
         const resolvedClientId = clientRow?.id || env.CLIENT_ID;
-        const notificationWebhook = clientRow?.notification_webhook || env.FORMSPREE_URL || null;
+        const notificationWebhook =
+          clientRow?.notification_webhook || env.FORMSPREE_URL || null;
 
         // Save lead to Supabase for VAULT visibility
-        await supabaseInsert("leads", {
-          client_id:     resolvedClientId,
-          visitor_name:  name    || "",
-          visitor_email: email   || "",
-          visitor_phone: phone   || "",
-          company:       company || "",
-          source:        source  || "contact-form",
-          message:       message || "",
-          status:        "new",
-        }, env);
+        await supabaseInsert(
+          "leads",
+          {
+            client_id: resolvedClientId,
+            visitor_name: name || "",
+            visitor_email: email || "",
+            visitor_phone: phone || "",
+            company: company || "",
+            source: source || "contact-form",
+            message: message || "",
+            status: "new",
+          },
+          env,
+        );
 
         // Fire-and-forget: POST lead data to client's configured webhook
         // This could be Formspree, Zapier, Make.com, or any HTTP endpoint
@@ -1864,40 +2439,57 @@ export default {
           ctx.waitUntil(
             fetch(notificationWebhook, {
               method: "POST",
-              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
               body: JSON.stringify({
                 name,
                 email,
-                phone:   phone   || "—",
+                phone: phone || "—",
                 company: company || "—",
                 message: message || "—",
-                source:  source  || "contact-form",
+                source: source || "contact-form",
               }),
-            }).catch((e) => console.error("Notification webhook error:", e.message)),
+            }).catch((e) =>
+              console.error("Notification webhook error:", e.message),
+            ),
           );
         }
 
         // Trigger lead-worker automation so submitter gets AI-crafted follow-up email.
         // Supabase insert + client webhook are already handled above in this route.
-        const leadWorkerPromise = sendToLeadWorker({
-          name,
-          email,
-          phone,
-          company,
-          message,
-          source: source || "contact-form",
-        }, "", env, resolvedClientId, {
-          skipOwnerNotification: true,
-          skipSupabaseSave: true,
-        });
+        const leadWorkerPromise = sendToLeadWorker(
+          {
+            name,
+            email,
+            phone,
+            company,
+            message,
+            source: source || "contact-form",
+          },
+          "",
+          env,
+          resolvedClientId,
+          {
+            skipOwnerNotification: true,
+            skipSupabaseSave: true,
+          },
+        );
 
         ctx.waitUntil(leadWorkerPromise);
 
-        return new Response(JSON.stringify({
-          success: true,
-        }), {
-          headers: { "Content-Type": "application/json", ...openCorsHeaders() },
-        });
+        return new Response(
+          JSON.stringify({
+            success: true,
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...openCorsHeaders(),
+            },
+          },
+        );
       } catch (e) {
         console.error("Lead capture error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
@@ -1912,29 +2504,40 @@ export default {
     // Used by the VAULT Leads page.
     if (url.pathname === "/leads") {
       try {
-        const { client_id = env.CLIENT_ID } = await request.json().catch(() => ({}));
-        const statusFilter    = url.searchParams.get("status");
-        const scoreFilter     = url.searchParams.get("score_label");
+        const { client_id = env.CLIENT_ID } = await request
+          .json()
+          .catch(() => ({}));
+        const statusFilter = url.searchParams.get("status");
+        const scoreFilter = url.searchParams.get("score_label");
         let query = `${env.SUPABASE_URL}/rest/v1/leads?client_id=eq.${client_id}&order=created_at.desc`;
-        if (statusFilter) query += `&status=eq.${encodeURIComponent(statusFilter)}`;
-        if (scoreFilter)  query += `&score_label=eq.${encodeURIComponent(scoreFilter)}`;
+        if (statusFilter)
+          query += `&status=eq.${encodeURIComponent(statusFilter)}`;
+        if (scoreFilter)
+          query += `&score_label=eq.${encodeURIComponent(scoreFilter)}`;
         const res = await fetch(query, {
           headers: {
-            apikey:        env.SUPABASE_KEY,
+            apikey: env.SUPABASE_KEY,
             Authorization: `Bearer ${env.SUPABASE_KEY}`,
-            Accept:        "application/json",
+            Accept: "application/json",
           },
         });
-        if (!res.ok) throw new Error(`Supabase leads fetch failed (${res.status})`);
+        if (!res.ok)
+          throw new Error(`Supabase leads fetch failed (${res.status})`);
         const leads = await res.json();
         return new Response(JSON.stringify({ leads }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       } catch (e) {
         console.error("Leads list error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1944,16 +2547,25 @@ export default {
     // Used by VAULT Leads page status dropdown and CRM push button.
     if (url.pathname === "/leads-update") {
       try {
-        const { lead_id, status, notes, crm_pushed, client_id = env.CLIENT_ID } = await request.json();
+        const {
+          lead_id,
+          status,
+          notes,
+          crm_pushed,
+          client_id = env.CLIENT_ID,
+        } = await request.json();
         if (!lead_id) {
           return new Response(JSON.stringify({ error: "lead_id required" }), {
             status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
           });
         }
         const patch = { updated_at: new Date().toISOString() };
-        if (status     !== undefined) patch.status     = status;
-        if (notes      !== undefined) patch.notes      = notes;
+        if (status !== undefined) patch.status = status;
+        if (notes !== undefined) patch.notes = notes;
         if (crm_pushed !== undefined) patch.crm_pushed = crm_pushed;
         const res = await fetch(
           `${env.SUPABASE_URL}/rest/v1/leads?id=eq.${lead_id}&client_id=eq.${client_id}`,
@@ -1961,22 +2573,29 @@ export default {
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
-              apikey:         env.SUPABASE_KEY,
-              Authorization:  `Bearer ${env.SUPABASE_KEY}`,
-              Prefer:         "return=minimal",
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+              Prefer: "return=minimal",
             },
             body: JSON.stringify(patch),
           },
         );
-        if (!res.ok) throw new Error(`Supabase leads update failed (${res.status})`);
+        if (!res.ok)
+          throw new Error(`Supabase leads update failed (${res.status})`);
         return new Response(JSON.stringify({ success: true }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       } catch (e) {
         console.error("Leads update error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -1990,10 +2609,16 @@ export default {
       try {
         const { query } = await request.json();
         if (!query || query.trim().length < 2) {
-          return new Response(JSON.stringify({ error: "query field required" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-          });
+          return new Response(
+            JSON.stringify({ error: "query field required" }),
+            {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders(request),
+              },
+            },
+          );
         }
 
         // Step 1: Embed the query (same as real chat)
@@ -2003,54 +2628,79 @@ export default {
         let debug = null; // surface failure reason to UI
 
         if (!env.OPENAI_API_KEY) debug = "OPENAI_API_KEY not set on worker";
-        else if (!env.SUPABASE_URL || !env.SUPABASE_KEY) debug = "Supabase env vars missing";
+        else if (!env.SUPABASE_URL || !env.SUPABASE_KEY)
+          debug = "Supabase env vars missing";
         else if (!env.CLIENT_ID) debug = "CLIENT_ID not set on worker";
 
         if (env.OPENAI_API_KEY && env.SUPABASE_URL && env.SUPABASE_KEY) {
           try {
             const queryEmbedding = await embedText(query, env);
-            const chunks = await supabaseRpc("match_knowledge_chunks", {
-              query_embedding: queryEmbedding,
-              match_count: 4,
-              match_client_id: env.CLIENT_ID,
-            }, env);
-            debug = `RPC returned ${Array.isArray(chunks) ? chunks.length : 'non-array'} chunks`;
+            const chunks = await supabaseRpc(
+              "match_knowledge_chunks",
+              {
+                query_embedding: queryEmbedding,
+                match_count: 4,
+                match_client_id: env.CLIENT_ID,
+              },
+              env,
+            );
+            debug = `RPC returned ${Array.isArray(chunks) ? chunks.length : "non-array"} chunks`;
             if (chunks && chunks.length > 0) {
               // Strip [Context: ...] prefix from content before sending to UI so the preview
               // shows the actual content, not the admin-supplied notes prefix
               chunks_retrieved = chunks.map((c) => {
                 const rawContent = c.content || "";
-                const ctxMatch = rawContent.match(/^\[Context:\s*([\s\S]*?)\]\n\n/);
+                const ctxMatch = rawContent.match(
+                  /^\[Context:\s*([\s\S]*?)\]\n\n/,
+                );
                 const context = ctxMatch ? ctxMatch[1].trim() : null;
-                const cleanContent = ctxMatch ? rawContent.slice(ctxMatch[0].length) : rawContent;
+                const cleanContent = ctxMatch
+                  ? rawContent.slice(ctxMatch[0].length)
+                  : rawContent;
                 return {
-                  source:     c.source || null,   // null if RPC doesn't return source yet
-                  id:         c.id || null,         // used to look up source if missing
-                  context,                          // the admin notes prefix, if any
-                  content:    cleanContent,         // full chunk text for expandable UI
-                  similarity: c.similarity != null ? Math.round(c.similarity * 100) / 100 : null,
+                  source: c.source || null, // null if RPC doesn't return source yet
+                  id: c.id || null, // used to look up source if missing
+                  context, // the admin notes prefix, if any
+                  content: cleanContent, // full chunk text for expandable UI
+                  similarity:
+                    c.similarity != null
+                      ? Math.round(c.similarity * 100) / 100
+                      : null,
                 };
               });
               // If source is missing from RPC result, fetch from knowledge_chunks by id
-              const missingSource = chunks_retrieved.some((c) => !c.source && c.id);
+              const missingSource = chunks_retrieved.some(
+                (c) => !c.source && c.id,
+              );
               if (missingSource) {
                 try {
-                  const ids = chunks_retrieved.filter((c) => !c.source && c.id).map((c) => c.id);
+                  const ids = chunks_retrieved
+                    .filter((c) => !c.source && c.id)
+                    .map((c) => c.id);
                   const idFilter = ids.map((id) => `id=eq.${id}`).join(",");
                   const srcRes = await fetch(
                     `${env.SUPABASE_URL}/rest/v1/knowledge_chunks?select=id,source&or=(${idFilter})`,
-                    { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+                    {
+                      headers: {
+                        apikey: env.SUPABASE_KEY,
+                        Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                      },
+                    },
                   );
                   if (srcRes.ok) {
                     const srcRows = await srcRes.json();
                     const srcMap = {};
-                    srcRows.forEach((r) => { srcMap[r.id] = r.source; });
+                    srcRows.forEach((r) => {
+                      srcMap[r.id] = r.source;
+                    });
                     chunks_retrieved = chunks_retrieved.map((c) => ({
                       ...c,
                       source: c.source || srcMap[c.id] || "unknown",
                     }));
                   }
-                } catch { /* non-fatal — source stays null */ }
+                } catch {
+                  /* non-fatal — source stays null */
+                }
               }
               contextText = chunks.map((c) => c.content).join("\n\n---\n\n");
               rag_used = true;
@@ -2092,14 +2742,28 @@ export default {
           .replace(/\[SHOW_CONTACT\]/g, "")
           .trim();
 
-        return new Response(JSON.stringify({ response: cleanResponse, chunks_retrieved, rag_used, debug }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-        });
+        return new Response(
+          JSON.stringify({
+            response: cleanResponse,
+            chunks_retrieved,
+            rag_used,
+            debug,
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
+          },
+        );
       } catch (e) {
         console.error("Playground error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -2111,22 +2775,41 @@ export default {
       try {
         const res = await fetch(
           `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${env.CLIENT_ID}&select=system_prompt,name`,
-          { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          {
+            headers: {
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+          },
         );
         if (!res.ok) throw new Error("Failed to fetch client settings");
         const rows = await res.json();
         const row = rows?.[0] || {};
-        const customPrompt = row.system_prompt && row.system_prompt.trim() ? row.system_prompt : null;
-        return new Response(JSON.stringify({
-          system_prompt:  customPrompt || DGC_SYSTEM_PROMPT,
-          is_custom:      !!customPrompt,
-          default_prompt: DGC_SYSTEM_PROMPT,
-          client_name:    row.name || "DGC",
-        }), { headers: { "Content-Type": "application/json", ...corsHeaders(request) } });
+        const customPrompt =
+          row.system_prompt && row.system_prompt.trim()
+            ? row.system_prompt
+            : null;
+        return new Response(
+          JSON.stringify({
+            system_prompt: customPrompt || DGC_SYSTEM_PROMPT,
+            is_custom: !!customPrompt,
+            default_prompt: DGC_SYSTEM_PROMPT,
+            client_name: row.name || "DGC",
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
+          },
+        );
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -2139,28 +2822,37 @@ export default {
       try {
         const { system_prompt, reset } = await request.json();
         // reset: true wipes the custom prompt; otherwise save the trimmed value (null if empty)
-        const newPrompt = reset ? null : ((system_prompt || "").trim() || null);
+        const newPrompt = reset ? null : (system_prompt || "").trim() || null;
         const res = await fetch(
           `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${env.CLIENT_ID}`,
           {
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
-              apikey:         env.SUPABASE_KEY,
-              Authorization:  `Bearer ${env.SUPABASE_KEY}`,
-              Prefer:         "return=minimal",
+              apikey: env.SUPABASE_KEY,
+              Authorization: `Bearer ${env.SUPABASE_KEY}`,
+              Prefer: "return=minimal",
             },
             body: JSON.stringify({ system_prompt: newPrompt }),
           },
         );
         if (!res.ok) throw new Error(`Failed to save settings (${res.status})`);
-        return new Response(JSON.stringify({ success: true, is_custom: !reset && !!newPrompt }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
-        });
+        return new Response(
+          JSON.stringify({ success: true, is_custom: !reset && !!newPrompt }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(request),
+            },
+          },
+        );
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(request),
+          },
         });
       }
     }
@@ -2177,22 +2869,68 @@ export default {
           "ANTHROPIC_API_KEY",
         ]);
         const payload = await request.json();
+        const normalized = {
+          ...payload,
+          clientName:
+            payload.clientName || payload.name || payload.visitor_name || "",
+          clientEmail:
+            payload.clientEmail || payload.email || payload.visitor_email || "",
+          clientPhone:
+            payload.clientPhone || payload.phone || payload.visitor_phone || "",
+          issueSummary:
+            payload.issueSummary ||
+            payload.issue_summary ||
+            payload.issue ||
+            payload.description ||
+            "Support request from chat widget",
+          ticketId:
+            payload.ticketId ||
+            payload.ticket_id ||
+            payload.ticket_number ||
+            `TKT-${Date.now()}`,
+          category: payload.category || "escalation",
+          urgency: (payload.urgency || "medium").toLowerCase(),
+          client_id: payload.client_id || env.CLIENT_ID,
+        };
 
         // Save ticket to Supabase — primary storage
-        await saveTicketToSupabase(payload, env);
+        await saveTicketToSupabase(normalized, env);
+
+        // Send webhook to Formspree so ticket-request notifications/autoresponders fire
+        ctx.waitUntil(
+          fetch(env.FORMSPREE_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({
+              name: normalized.clientName,
+              email: normalized.clientEmail,
+              phone: normalized.clientPhone || "—",
+              ticket_id: normalized.ticketId,
+              issue_summary: normalized.issueSummary,
+              category: normalized.category,
+              urgency: normalized.urgency,
+              source: "chat_widget_ticket",
+            }),
+          }).catch((e) =>
+            console.error("Escalation Formspree webhook error:", e.message),
+          ),
+        );
 
         // Send confirmation email to client via Apps Script (Gmail)
-        if (payload.clientEmail) {
+        if (normalized.clientEmail) {
           const html = buildConfirmationEmail(
-            payload.clientName,
-            payload.ticketId,
+            normalized.clientName,
+            normalized.ticketId,
           );
           ctx.waitUntil(
             postToAppsScript(
               {
-                to: payload.clientEmail,
-                subject: `We've received your request — Ticket ${payload.ticketId}`,
-                body: `Hi ${payload.clientName || "there"},\n\nWe've received your support request and will be in touch within 2–3 business days.\n\nTicket ID: ${payload.ticketId}\n\nThe DGC Team`,
+                to: normalized.clientEmail,
+                subject: `We've received your request — Ticket ${normalized.ticketId}`,
+                body: `Hi ${normalized.clientName || "there"},\n\nWe've received your support request and will be in touch within 2–3 business days.\n\nTicket ID: ${normalized.ticketId}\n\nThe DGC Team`,
                 html,
               },
               env,
@@ -2244,9 +2982,17 @@ export default {
       let priorHistory = [];
       if (visitorId && env.SUPABASE_URL && env.SUPABASE_KEY) {
         try {
-          conversationId = await getOrCreateConversation(visitorId, clientId, env);
+          conversationId = await getOrCreateConversation(
+            visitorId,
+            clientId,
+            env,
+          );
           // Fetch last 10 messages from previous sessions (not the current session — frontend sends those)
-          const history = await fetchConversationHistory(conversationId, 10, env);
+          const history = await fetchConversationHistory(
+            conversationId,
+            10,
+            env,
+          );
           // Only include history that predates the current session messages to avoid duplication
           // Current session is whatever the frontend sent; prior history is everything before
           if (history.length > 0) priorHistory = history;
@@ -2264,7 +3010,11 @@ export default {
         .reverse()
         .find((m) => m.role === "user");
       if (lastUserMsg && env.OPENAI_API_KEY && env.SUPABASE_URL) {
-        const context = await retrieveContext(lastUserMsg.content, clientId, env);
+        const context = await retrieveContext(
+          lastUserMsg.content,
+          clientId,
+          env,
+        );
         if (context) {
           systemPrompt += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nKNOWLEDGE BASE — use this to answer accurately\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${context}`;
         }
@@ -2381,7 +3131,9 @@ export default {
               "Lead found via fallback:",
               JSON.stringify(fallbackLead),
             );
-            ctx.waitUntil(sendToLeadWorker(fallbackLead, chatContext, env, clientId));
+            ctx.waitUntil(
+              sendToLeadWorker(fallbackLead, chatContext, env, clientId),
+            );
           }
         }
       }
@@ -2391,7 +3143,12 @@ export default {
       // the visitor never waits for the Supabase write.
       if (conversationId && lastUserMsg && rawText) {
         ctx.waitUntil(
-          saveConversationTurn(conversationId, lastUserMsg.content, rawText, env).catch((e) =>
+          saveConversationTurn(
+            conversationId,
+            lastUserMsg.content,
+            rawText,
+            env,
+          ).catch((e) =>
             console.error("Visitor memory save error (non-fatal):", e.message),
           ),
         );
