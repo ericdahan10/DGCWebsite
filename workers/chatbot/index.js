@@ -568,21 +568,32 @@ async function saveTicketToSupabase(payload, env) {
     payload.clientPhone || payload.visitor_phone || payload.phone || "";
   const ticketNum =
     payload.ticketId || payload.ticket_id || `TKT-${Date.now()}`;
-  await supabaseInsert(
-    "tickets",
-    {
-      client_id: payload.client_id || env.CLIENT_ID,
-      ticket_number: ticketNum,
-      visitor_name: name,
-      visitor_email: email,
-      visitor_phone: phone,
-      urgency: (payload.urgency || "medium").toLowerCase(),
-      subject: desc.slice(0, 120),
-      description: desc,
-      status: "open",
-    },
-    env,
-  );
+  const baseRow = {
+    client_id: payload.client_id || env.CLIENT_ID,
+    ticket_number: ticketNum,
+    visitor_name: name,
+    visitor_email: email,
+    visitor_phone: phone,
+    urgency: (payload.urgency || "medium").toLowerCase(),
+    subject: desc.slice(0, 120),
+    description: desc,
+    status: "open",
+  };
+  const linkage = {};
+  if (payload.visitor_id) linkage.visitor_id = payload.visitor_id;
+  if (payload.conversation_id)
+    linkage.conversation_id = payload.conversation_id;
+
+  try {
+    await supabaseInsert("tickets", { ...baseRow, ...linkage }, env);
+  } catch (e) {
+    if (Object.keys(linkage).length === 0) throw e;
+    console.warn(
+      "Ticket insert without linkage fields due to schema mismatch:",
+      e.message,
+    );
+    await supabaseInsert("tickets", baseRow, env);
+  }
 }
 
 // ── RAG retrieval ─────────────────────────────────────────────────────────────
@@ -2891,7 +2902,25 @@ export default {
           category: payload.category || "escalation",
           urgency: (payload.urgency || "medium").toLowerCase(),
           client_id: payload.client_id || env.CLIENT_ID,
+          visitor_id: payload.visitor_id || payload.visitorId || "",
+          conversation_id:
+            payload.conversation_id || payload.conversationId || "",
         };
+
+        if (!normalized.conversation_id && normalized.visitor_id) {
+          try {
+            normalized.conversation_id = await getOrCreateConversation(
+              normalized.visitor_id,
+              normalized.client_id,
+              env,
+            );
+          } catch (e) {
+            console.warn(
+              "Could not resolve conversation_id for escalation:",
+              e.message,
+            );
+          }
+        }
 
         // Save ticket to Supabase — primary storage
         await saveTicketToSupabase(normalized, env);
@@ -2909,6 +2938,8 @@ export default {
               email: normalized.clientEmail,
               phone: normalized.clientPhone || "—",
               ticket_id: normalized.ticketId,
+              conversation_id: normalized.conversation_id || "",
+              visitor_id: normalized.visitor_id || "",
               issue_summary: normalized.issueSummary,
               category: normalized.category,
               urgency: normalized.urgency,
