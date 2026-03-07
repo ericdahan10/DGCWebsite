@@ -1639,15 +1639,17 @@ export default {
     // ── /analytics-conversations: list recent conversations with visitor info ───
     if (url.pathname === "/analytics-conversations") {
       try {
-        const { client_id = env.CLIENT_ID } = await request
+        const { client_id = env.CLIENT_ID, visitor_id: filterVisitorId } = await request
           .json()
           .catch(() => ({}));
         const clientId = client_id;
         const limit = parseInt(url.searchParams.get("limit") || "50", 10);
 
-        // Fetch recent conversations newest-first
+        // Fetch recent conversations newest-first; optionally filter to a single visitor
+        let convoQuery = `${env.SUPABASE_URL}/rest/v1/conversations?client_id=eq.${clientId}&order=started_at.desc&limit=${limit}`;
+        if (filterVisitorId) convoQuery += `&visitor_id=eq.${encodeURIComponent(filterVisitorId)}`;
         const convosRes = await fetch(
-          `${env.SUPABASE_URL}/rest/v1/conversations?client_id=eq.${clientId}&order=started_at.desc&limit=${limit}`,
+          convoQuery,
           {
             headers: {
               apikey: env.SUPABASE_KEY,
@@ -2919,6 +2921,33 @@ export default {
               "Could not resolve conversation_id for escalation:",
               e.message,
             );
+          }
+        }
+
+        // Deduplication: skip if a ticket for this conversation already exists
+        if (normalized.conversation_id && env.SUPABASE_URL && env.SUPABASE_KEY) {
+          try {
+            const dupRes = await fetch(
+              `${env.SUPABASE_URL}/rest/v1/tickets?conversation_id=eq.${encodeURIComponent(normalized.conversation_id)}&limit=1`,
+              {
+                headers: {
+                  apikey: env.SUPABASE_KEY,
+                  Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                  Accept: "application/json",
+                },
+              },
+            );
+            if (dupRes.ok) {
+              const existing = await dupRes.json();
+              if (existing.length > 0) {
+                return new Response(
+                  JSON.stringify({ success: true, duplicate: true, ticket_number: existing[0].ticket_number }),
+                  { headers: { "Content-Type": "application/json", ...corsHeaders(request) } },
+                );
+              }
+            }
+          } catch (e) {
+            console.warn("Duplicate check failed (non-fatal):", e.message);
           }
         }
 
