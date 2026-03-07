@@ -128,15 +128,22 @@
         color: #ffffff;
         font-weight: 600;
         letter-spacing: 0.01em;
-        box-shadow: 0 6px 14px rgba(45, 90, 143, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+        box-shadow:
+          0 6px 14px rgba(45, 90, 143, 0.35),
+          inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.18s ease,
+          filter 0.18s ease;
       }
 
       .nav-vault-btn:hover {
         color: #ffffff;
         transform: translateY(-1px);
         filter: brightness(1.06);
-        box-shadow: 0 8px 18px rgba(58, 123, 200, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+        box-shadow:
+          0 8px 18px rgba(58, 123, 200, 0.45),
+          inset 0 1px 0 rgba(255, 255, 255, 0.24);
       }
 
       /* Hero Section */
@@ -2601,11 +2608,27 @@
         .card-demo.large {
           height: 230px;
         }
+        .card-demo.demo-vault,
+        .card-demo.demo-voice {
+          height: auto;
+          overflow-y: auto;
+          max-height: 320px;
+        }
         .showcase-left {
           padding: 1.8rem;
         }
         .showcase-left h3 {
           font-size: 1.35rem;
+        }
+        .demo-vault-stats {
+          gap: 5px;
+        }
+        .demo-vault-stat-num {
+          font-size: 14px;
+        }
+        .service-card-badge {
+          flex-wrap: wrap;
+          gap: 6px;
         }
       }
 
@@ -2953,6 +2976,138 @@
         color: #6366f1 !important;
       }
 
+      /* ── Rose color (AI Voice Receptionist) ── */
+      .tint-rose .showcase-left::before {
+        background: linear-gradient(135deg, #ffe4e6 0%, transparent 100%);
+      }
+      .tint-rose .card-value-props li::before { color: #f43f5e; }
+      .tint-rose .showcase-stat { color: #f43f5e; }
+      .cat-rose { color: #f43f5e !important; }
+      .cat-rose .dot { background: #f43f5e !important; }
+      .badge-rose {
+        background: rgba(244, 63, 94, 0.08) !important;
+        border-color: rgba(244, 63, 94, 0.2) !important;
+        color: #f43f5e !important;
+      }
+
+      /* ── VAULT demo mockup ── */
+      .demo-vault {
+        background: #0d1117;
+        border: 1px solid rgba(74, 138, 199, 0.2);
+        border-radius: 10px;
+        padding: 14px 16px;
+        font-family: "Inter", sans-serif;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .demo-vault-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .demo-vault-logo {
+        width: 22px; height: 22px;
+        background: linear-gradient(135deg, #4a8ac7, #2d5a8f);
+        border-radius: 5px;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .demo-vault-title { font-size: 11px; font-weight: 700; color: #e2e8f0; letter-spacing: 0.08em; }
+      .demo-vault-sub { font-size: 9px; color: #4a8ac7; letter-spacing: 0.12em; text-transform: uppercase; margin-left: auto; }
+      .demo-vault-stats {
+        display: flex; gap: 8px;
+      }
+      .demo-vault-stat {
+        flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 7px; padding: 8px 10px; text-align: center;
+      }
+      .demo-vault-stat-num { font-size: 18px; font-weight: 700; color: #e2e8f0; line-height: 1; }
+      .demo-vault-stat-label { font-size: 9px; color: #556; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
+      .demo-vault-stat.highlight .demo-vault-stat-num { color: #4a8ac7; }
+      .demo-vault-row {
+        display: flex; align-items: center; gap: 10px;
+        background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 7px; padding: 8px 12px;
+      }
+      .demo-vault-row-icon {
+        width: 26px; height: 26px; border-radius: 6px;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        font-size: 12px;
+      }
+      .demo-vault-row-icon.red   { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.2); }
+      .demo-vault-row-icon.amber { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.2); }
+      .demo-vault-row-icon.green { background: rgba(74,222,128,0.15); border: 1px solid rgba(74,222,128,0.2); }
+      .demo-vault-row-text { flex: 1; }
+      .demo-vault-row-title { font-size: 11px; font-weight: 600; color: #cdd; }
+      .demo-vault-row-sub   { font-size: 10px; color: #556; margin-top: 2px; }
+      .demo-vault-row-badge {
+        font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
+        text-transform: uppercase; letter-spacing: 0.05em;
+      }
+      .demo-vault-row-badge.red   { background: rgba(239,68,68,0.15); color: #ef4444; }
+      .demo-vault-row-badge.amber { background: rgba(245,158,11,0.15); color: #f59e0b; }
+      .demo-vault-row-badge.green { background: rgba(74,222,128,0.15); color: #4ade80; }
+      .demo-vault-rag {
+        display: flex; align-items: center; gap: 8px;
+        border: 1px solid rgba(74,138,199,0.2); border-radius: 7px; padding: 8px 12px;
+        background: rgba(74,138,199,0.05);
+      }
+      .demo-vault-rag-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+      .demo-vault-rag-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #4a8ac7, #2d5a8f); }
+      .demo-vault-rag-label { font-size: 10px; color: #4a8ac7; white-space: nowrap; }
+
+      /* ── AI Voice demo mockup ── */
+      .demo-voice {
+        background: #0d0f1a;
+        border: 1px solid rgba(244, 63, 94, 0.2);
+        border-radius: 10px;
+        padding: 14px 16px;
+        font-family: "Inter", sans-serif;
+        display: flex; flex-direction: column; gap: 10px;
+        width: 100%; box-sizing: border-box;
+      }
+      .demo-voice-call {
+        display: flex; align-items: center; gap: 10px;
+        background: rgba(244,63,94,0.06); border: 1px solid rgba(244,63,94,0.15);
+        border-radius: 8px; padding: 10px 12px;
+      }
+      .demo-voice-ring {
+        width: 32px; height: 32px; border-radius: 50%;
+        background: rgba(244,63,94,0.15); border: 1px solid rgba(244,63,94,0.3);
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        font-size: 14px; animation: voicePulse 1.8s ease-in-out infinite;
+      }
+      @keyframes voicePulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(244,63,94,0.3); }
+        50% { box-shadow: 0 0 0 8px rgba(244,63,94,0); }
+      }
+      .demo-voice-call-info { flex: 1; }
+      .demo-voice-call-title { font-size: 11px; font-weight: 700; color: #f43f5e; }
+      .demo-voice-call-sub   { font-size: 10px; color: #556; margin-top: 2px; }
+      .demo-voice-live { font-size: 9px; font-weight: 700; color: #f43f5e; background: rgba(244,63,94,0.12); border: 1px solid rgba(244,63,94,0.2); padding: 2px 7px; border-radius: 10px; }
+      .demo-voice-transcript {
+        background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 7px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
+      }
+      .demo-voice-transcript-label { font-size: 9px; color: #556; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
+      .demo-voice-line { display: flex; gap: 6px; align-items: flex-start; }
+      .demo-voice-line-who { font-size: 9px; font-weight: 700; min-width: 40px; padding-top: 1px; }
+      .demo-voice-line-who.caller { color: #888; }
+      .demo-voice-line-who.ai { color: #f43f5e; }
+      .demo-voice-line-text { font-size: 10px; color: #aab; line-height: 1.4; }
+      .demo-voice-booked {
+        display: flex; align-items: center; gap: 8px;
+        background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2);
+        border-radius: 7px; padding: 8px 12px;
+      }
+      .demo-voice-booked-icon { font-size: 14px; }
+      .demo-voice-booked-text { font-size: 10px; color: #4ade80; font-weight: 600; }
+      .demo-voice-booked-sub  { font-size: 9px; color: #556; margin-top: 1px; }
+
       /* ── Strategy/Consultancy demo ── */
       .demo-strategy {
         background: #100d00;
@@ -3298,9 +3453,9 @@
         position: relative;
         background: linear-gradient(
           135deg,
-          #0d1117 0%,
-          #141820 50%,
-          #0b1220 100%
+          #141418 0%,
+          #181c22 40%,
+          #1a2028 100%
         );
         overflow: hidden;
         padding: 0 0 5rem;
@@ -3785,7 +3940,7 @@
           >
             <path
               d="M0,80 L1440,80 L1440,50 C1100,5 800,75 540,25 C380,0 180,60 0,35 Z"
-              fill="#0d1117"
+              fill="#141418"
             />
           </svg>
         </div>
@@ -4645,109 +4800,201 @@
             </div>
           </div>
 
-          <!-- AI Scheduler -->
+          <!-- VAULT -->
           <div class="showcase-card tint-indigo" id="showcase-5">
             <div class="showcase-left">
               <div class="service-card-category cat-indigo">
-                <span class="dot"></span> COMING SOON
+                <span class="dot"></span> VAULT
               </div>
-              <h3>AI Scheduler</h3>
+              <h3>VAULT Intelligence Platform</h3>
               <p class="showcase-desc">
-                Scheduling back-and-forth is dead. Our upcoming AI Scheduler
-                finds the right time, sends invites, handles reminders, and
-                follows up — completely hands-free.
+                Your AI-powered client command center. VAULT uses RAG
+                intelligence to deliver instant, accurate answers from your
+                knowledge base, captures every lead and support ticket
+                automatically, and pushes it all to your CRM without lifting
+                a finger.
               </p>
               <ul class="card-value-props">
                 <li>
-                  AI finds optimal meeting times based on both parties'
-                  availability
+                  RAG-powered knowledge base that learns from your documents,
+                  FAQs, and past conversations
                 </li>
                 <li>
-                  Sends confirmations, reminders, and follow-ups automatically
+                  Auto-creates tickets and leads from every chat — ready to
+                  review, assign, or escalate instantly
                 </li>
                 <li>
-                  Connects with Google Calendar and your existing booking tools
+                  Pushes client data directly to HubSpot, Salesforce, and your
+                  existing CRM stack
+                </li>
+                <li>
+                  Real-time dashboard with conversation analytics, response
+                  rates, and client insights
                 </li>
               </ul>
               <p class="showcase-stat">
-                → Zero back-and-forth. Zero missed meetings.
+                → From first contact to CRM record in under 60 seconds.
               </p>
               <div class="service-card-badge">
                 <span class="badge-item badge-indigo"
-                  ><svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                  >
-                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" /></svg
-                  >Google Calendar</span
+                  ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                  </svg>RAG Intelligence</span
                 >
                 <span class="badge-item badge-indigo"
-                  ><svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                  >
-                    <path
-                      d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-                    /></svg
-                  >Auto follow-up</span
+                  ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M9 11l3 3L22 4"/>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                  </svg>Ticket &amp; Lead Capture</span
+                >
+                <span class="badge-item badge-indigo"
+                  ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <rect x="2" y="3" width="20" height="14" rx="2"/>
+                    <path d="M8 21h8M12 17v4"/>
+                  </svg>CRM Push</span
                 >
               </div>
             </div>
             <div class="showcase-right">
-              <div class="card-demo demo-scheduler large">
-                <div class="demo-sched-header">
-                  <span class="demo-sched-title">AI Scheduler</span>
-                  <span class="demo-sched-month">March 2026</span>
-                </div>
-                <div class="demo-sched-ai-row">
-                  <div class="demo-sched-ai-icon">
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
+              <div class="card-demo demo-vault large">
+                <div class="demo-vault-header">
+                  <div class="demo-vault-logo">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+                      <rect x="3" y="11" width="18" height="11" rx="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                     </svg>
                   </div>
-                  <div class="demo-sched-ai-msg">
-                    "I found 3 times that work for both of you this week →"
+                  <span class="demo-vault-title">VAULT</span>
+                  <span class="demo-vault-sub">Live Dashboard</span>
+                </div>
+                <div class="demo-vault-stats">
+                  <div class="demo-vault-stat highlight">
+                    <div class="demo-vault-stat-num">247</div>
+                    <div class="demo-vault-stat-label">Conversations</div>
+                  </div>
+                  <div class="demo-vault-stat">
+                    <div class="demo-vault-stat-num">38</div>
+                    <div class="demo-vault-stat-label">Leads Created</div>
+                  </div>
+                  <div class="demo-vault-stat">
+                    <div class="demo-vault-stat-num">94%</div>
+                    <div class="demo-vault-stat-label">RAG Accuracy</div>
                   </div>
                 </div>
-                <div class="demo-sched-slots">
-                  <div class="demo-sched-slot selected">
-                    <span class="demo-sched-slot-check">✓</span>
-                    <span class="demo-sched-slot-time"
-                      >Tue Mar 3 · 10:00 AM EST</span
-                    >
-                    <span class="demo-sched-slot-tag">Best match</span>
+                <div class="demo-vault-row">
+                  <div class="demo-vault-row-icon red">🔥</div>
+                  <div class="demo-vault-row-text">
+                    <div class="demo-vault-row-title">Sarah M. — Pricing inquiry</div>
+                    <div class="demo-vault-row-sub">Ticket created · CRM pushed · 2 min ago</div>
                   </div>
-                  <div class="demo-sched-slot">
-                    <span class="demo-sched-slot-check">○</span>
-                    <span class="demo-sched-slot-time"
-                      >Thu Mar 5 · 2:00 PM EST</span
-                    >
+                  <div class="demo-vault-row-badge red">High</div>
+                </div>
+                <div class="demo-vault-row">
+                  <div class="demo-vault-row-icon amber">📋</div>
+                  <div class="demo-vault-row-text">
+                    <div class="demo-vault-row-title">James K. — Support request</div>
+                    <div class="demo-vault-row-sub">Lead captured · Assigned · 8 min ago</div>
                   </div>
-                  <div class="demo-sched-slot">
-                    <span class="demo-sched-slot-check">○</span>
-                    <span class="demo-sched-slot-time"
-                      >Fri Mar 6 · 11:00 AM EST</span
-                    >
+                  <div class="demo-vault-row-badge amber">Med</div>
+                </div>
+                <div class="demo-vault-rag">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a8ac7" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg>
+                  <div class="demo-vault-rag-bar"><div class="demo-vault-rag-fill" style="width:94%"></div></div>
+                  <div class="demo-vault-rag-label">RAG 94% match</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Voice Receptionist & Scheduler -->
+          <div class="showcase-card tint-rose" id="showcase-6">
+            <div class="showcase-left">
+              <div class="service-card-category cat-rose">
+                <span class="dot"></span> AI VOICE
+              </div>
+              <h3>AI Voice Receptionist &amp; Scheduler</h3>
+              <p class="showcase-desc">
+                Never miss a call again. Our AI voice agent answers your
+                phones 24/7, qualifies callers, handles FAQs, and books
+                meetings directly into your calendar — with zero hold time
+                and zero missed opportunities.
+              </p>
+              <ul class="card-value-props">
+                <li>
+                  Answers inbound calls, qualifies leads, and routes to the
+                  right person automatically
+                </li>
+                <li>
+                  Books appointments and sends confirmations without any
+                  human involvement
+                </li>
+                <li>
+                  Integrates with Google Calendar, Calendly, and your
+                  existing scheduling stack
+                </li>
+                <li>
+                  Handles after-hours calls so you never lose a lead to
+                  voicemail again
+                </li>
+              </ul>
+              <p class="showcase-stat">
+                → Available 24/7. Zero wait time. Zero missed calls.
+              </p>
+              <div class="service-card-badge">
+                <span class="badge-item badge-rose"
+                  ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.8a16 16 0 0 0 6.29 6.29l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                  </svg>Voice AI</span
+                >
+                <span class="badge-item badge-rose"
+                  ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>Appointment Booking</span
+                >
+                <span class="badge-item badge-rose"
+                  ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>24/7 Coverage</span
+                >
+              </div>
+            </div>
+            <div class="showcase-right">
+              <div class="card-demo demo-voice large">
+                <div class="demo-voice-call">
+                  <div class="demo-voice-ring">📞</div>
+                  <div class="demo-voice-call-info">
+                    <div class="demo-voice-call-title">Incoming Call · +1 (555) 402-8811</div>
+                    <div class="demo-voice-call-sub">AI Receptionist answering · 0:42</div>
+                  </div>
+                  <div class="demo-voice-live">LIVE</div>
+                </div>
+                <div class="demo-voice-transcript">
+                  <div class="demo-voice-transcript-label">Live Transcript</div>
+                  <div class="demo-voice-line">
+                    <span class="demo-voice-line-who caller">Caller</span>
+                    <span class="demo-voice-line-text">Hi, I'd like to book a consultation for next week.</span>
+                  </div>
+                  <div class="demo-voice-line">
+                    <span class="demo-voice-line-who ai">AI</span>
+                    <span class="demo-voice-line-text">Absolutely! I have Tuesday at 10 AM or Thursday at 2 PM available. Which works better for you?</span>
+                  </div>
+                  <div class="demo-voice-line">
+                    <span class="demo-voice-line-who caller">Caller</span>
+                    <span class="demo-voice-line-text">Tuesday works great.</span>
                   </div>
                 </div>
-                <div class="demo-sched-confirm">
-                  📅 Invite sent · Calendar blocked · Reminder set for 24h
-                  before
+                <div class="demo-voice-booked">
+                  <div class="demo-voice-booked-icon">✅</div>
+                  <div>
+                    <div class="demo-voice-booked-text">Appointment booked · Tue 10:00 AM</div>
+                    <div class="demo-voice-booked-sub">Confirmation sent · Calendar blocked · Lead captured</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -4762,6 +5009,7 @@
           <button class="showcase-dot" onclick="goToCard(3)"></button>
           <button class="showcase-dot" onclick="goToCard(4)"></button>
           <button class="showcase-dot" onclick="goToCard(5)"></button>
+          <button class="showcase-dot" onclick="goToCard(6)"></button>
         </div>
 
         <!-- Progress bar -->
@@ -6698,6 +6946,16 @@
         var DURATION = 30000;
 
         function init() {
+          var wrapper = document.querySelector(".showcase-wrapper");
+          // Shuffle cards on every page load (Fisher-Yates)
+          if (wrapper) {
+            var cardEls = Array.from(wrapper.querySelectorAll(".showcase-card"));
+            for (var i = cardEls.length - 1; i > 0; i--) {
+              var j = Math.floor(Math.random() * (i + 1));
+              var tmp = cardEls[i]; cardEls[i] = cardEls[j]; cardEls[j] = tmp;
+            }
+            cardEls.forEach(function(c) { wrapper.appendChild(c); });
+          }
           cards = document.querySelectorAll(".showcase-card");
           dots = document.querySelectorAll(".showcase-dot");
           progressFill = document.getElementById("showcase-progress");
