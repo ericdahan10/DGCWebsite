@@ -1657,7 +1657,10 @@ export default {
             },
           },
         );
-        if (!convosRes.ok) throw new Error("Failed to fetch conversations");
+        if (!convosRes.ok) {
+          const errText = await convosRes.text().catch(() => "(unreadable)");
+          throw new Error(`Supabase conversations error (${convosRes.status}): ${errText}`);
+        }
         const convos = await convosRes.json();
 
         if (convos.length === 0) {
