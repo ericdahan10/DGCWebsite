@@ -3187,7 +3187,8 @@ export default {
 
       // ── Return response with routing info ────────────────────────────────
       // Use openCorsHeaders so widget.js works when embedded on any client site.
-      const responseBody = { ...data, _routing: routing };
+      // Include conversation_id so the widget can pass it in escalation calls.
+      const responseBody = { ...data, _routing: routing, conversation_id: conversationId };
 
       return new Response(JSON.stringify(responseBody), {
         headers: {
