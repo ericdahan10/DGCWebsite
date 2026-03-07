@@ -1497,7 +1497,7 @@ export default {
         const { client_id = env.CLIENT_ID } = await request
           .json()
           .catch(() => ({}));
-        const clientId = client_id;
+        const clientId = client_id || env.CLIENT_ID;
 
         // Count knowledge chunks for this client
         const chunksCount = await supabaseCount(
@@ -1642,7 +1642,7 @@ export default {
         const { client_id = env.CLIENT_ID, visitor_id: filterVisitorId } = await request
           .json()
           .catch(() => ({}));
-        const clientId = client_id;
+        const clientId = client_id || env.CLIENT_ID;
         const limit = parseInt(url.searchParams.get("limit") || "50", 10);
 
         // Fetch recent conversations newest-first; optionally filter to a single visitor
@@ -2135,9 +2135,10 @@ export default {
     // Used by the VAULT Tickets page to render the ticket list.
     if (url.pathname === "/tickets") {
       try {
-        const { client_id = env.CLIENT_ID } = await request
+        const { client_id: _tickets_cid } = await request
           .json()
           .catch(() => ({}));
+        const client_id = _tickets_cid || env.CLIENT_ID;
         const status = url.searchParams.get("status");
         let query = `${env.SUPABASE_URL}/rest/v1/tickets?client_id=eq.${client_id}&order=created_at.desc`;
         if (status) query += `&status=eq.${encodeURIComponent(status)}`;
@@ -2520,9 +2521,10 @@ export default {
     // Used by the VAULT Leads page.
     if (url.pathname === "/leads") {
       try {
-        const { client_id = env.CLIENT_ID } = await request
+        const { client_id: _leads_cid } = await request
           .json()
           .catch(() => ({}));
+        const client_id = _leads_cid || env.CLIENT_ID;
         const statusFilter = url.searchParams.get("status");
         const scoreFilter = url.searchParams.get("score_label");
         let query = `${env.SUPABASE_URL}/rest/v1/leads?client_id=eq.${client_id}&order=created_at.desc`;
