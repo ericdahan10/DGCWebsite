@@ -3993,7 +3993,7 @@
         <h1 id="hero-headline">
           Stop Losing Time, Leads, and Revenue to Manual Work
         </h1>
-        <p id="hero-subtitle">
+        <p id="hero-subtitle" style="opacity:0">
           We build AI systems that work while you sleep, automating follow-up,
           qualifying leads, and delivering answers in seconds, not days.
         </p>
@@ -4003,6 +4003,7 @@
           rel="noopener noreferrer"
           class="cta-button"
           id="hero-cta"
+          style="opacity:0"
           >Book a Consultation 🚀</a
         >
         <div
@@ -4027,6 +4028,7 @@
               color: #4a8ac7;
               letter-spacing: 0.3px;
               transition: opacity 0.4s;
+              opacity: 0;
             "
           >
             AI chatbots increase website conversions by 23% on average
@@ -6969,7 +6971,7 @@
             if (twText.length < fullText.length) {
               twText += fullText[twText.length];
               twSetHTML(twText);
-              twTimer = setTimeout(step, 32 + Math.random() * 18);
+              twTimer = setTimeout(step, 90 + Math.random() * 40);
             } else {
               if (onDone) twTimer = setTimeout(onDone, 320);
             }
@@ -6983,7 +6985,7 @@
             if (twText.length > 0) {
               twText = twText.slice(0, -1);
               twSetHTML(twText);
-              twTimer = setTimeout(step, 16 + Math.random() * 10);
+              twTimer = setTimeout(step, 40 + Math.random() * 20);
             } else {
               if (onDone) onDone();
             }
