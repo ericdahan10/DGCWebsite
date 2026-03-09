@@ -2144,11 +2144,34 @@
         }
       }
 
+      @keyframes glow-indigo {
+        0%, 100% {
+          box-shadow: 0 0 0 2px rgba(99,102,241,0.6), 0 0 40px rgba(99,102,241,0.55), 0 0 80px rgba(99,102,241,0.25);
+          border-color: rgba(99,102,241,0.8);
+        }
+        50% {
+          box-shadow: 0 0 0 2px rgba(129,140,248,0.9), 0 0 60px rgba(129,140,248,0.75), 0 0 120px rgba(129,140,248,0.4);
+          border-color: rgb(129,140,248);
+        }
+      }
+      @keyframes glow-rose {
+        0%, 100% {
+          box-shadow: 0 0 0 2px rgba(244,63,94,0.6), 0 0 40px rgba(244,63,94,0.55), 0 0 80px rgba(244,63,94,0.25);
+          border-color: rgba(244,63,94,0.8);
+        }
+        50% {
+          box-shadow: 0 0 0 2px rgba(251,113,133,0.9), 0 0 60px rgba(251,113,133,0.75), 0 0 120px rgba(251,113,133,0.4);
+          border-color: rgb(251,113,133);
+        }
+      }
+
       .showcase-card.tint-blue.visible   { animation: glow-blue   3s ease-in-out infinite; border-color: rgba(45,90,143,0.8); }
       .showcase-card.tint-purple.visible { animation: glow-purple 3s ease-in-out infinite; border-color: rgba(108,63,160,0.8); }
       .showcase-card.tint-green.visible  { animation: glow-green  3s ease-in-out infinite; border-color: rgba(26,138,92,0.8); }
       .showcase-card.tint-orange.visible { animation: glow-orange 3s ease-in-out infinite; border-color: rgba(199,106,26,0.8); }
       .showcase-card.tint-teal.visible   { animation: glow-teal   3s ease-in-out infinite; border-color: rgba(14,138,126,0.8); }
+      .showcase-card.tint-indigo.visible { animation: glow-indigo 3s ease-in-out infinite; border-color: rgba(99,102,241,0.8); }
+      .showcase-card.tint-rose.visible   { animation: glow-rose   3s ease-in-out infinite; border-color: rgba(244,63,94,0.8); }
 
       /* Left column */
       .showcase-left {
