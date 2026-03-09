@@ -363,12 +363,22 @@
         margin-bottom: 1.5rem;
         color: var(--white);
         max-width: 900px;
-        animation: fadeInUp 0.8s ease-out;
         text-align: center;
         margin-left: auto;
         margin-right: auto;
-        /* Reserve vertical space to reduce layout shifts when hero text changes */
         min-height: 5.5rem;
+      }
+
+      .hero-cursor {
+        display: inline-block;
+        color: #4a8ac7;
+        font-weight: 200;
+        margin-left: 3px;
+        animation: cursor-blink 1s step-end infinite;
+      }
+      @keyframes cursor-blink {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0; }
       }
 
       .hero p {
@@ -6943,33 +6953,80 @@
           },
         ];
 
+        // ===== Typewriter Engine =====
+        let twText = '';
+        let twTimer = null;
+
+        function twSetHTML(text) {
+          if (hero) hero.innerHTML = text + '<span class="hero-cursor">|</span>';
+        }
+
+        function twType(fullText, onDone) {
+          clearTimeout(twTimer);
+          twText = '';
+          twSetHTML('');
+          function step() {
+            if (twText.length < fullText.length) {
+              twText += fullText[twText.length];
+              twSetHTML(twText);
+              twTimer = setTimeout(step, 32 + Math.random() * 18);
+            } else {
+              if (onDone) twTimer = setTimeout(onDone, 320);
+            }
+          }
+          step();
+        }
+
+        function twErase(onDone) {
+          clearTimeout(twTimer);
+          function step() {
+            if (twText.length > 0) {
+              twText = twText.slice(0, -1);
+              twSetHTML(twText);
+              twTimer = setTimeout(step, 16 + Math.random() * 10);
+            } else {
+              if (onDone) onDone();
+            }
+          }
+          step();
+        }
+
+        // Hide subtitle/cta/stat and start initial typewriter
+        const initialHeadline = hero ? hero.textContent.trim() : '';
+        [subtitle, cta, statPill].forEach(el => {
+          if (el) { el.style.opacity = '0'; el.style.transition = 'opacity 0.7s ease'; }
+        });
+
+        twType(initialHeadline, function() {
+          [subtitle, cta, statPill].forEach(el => { if (el) el.style.opacity = '1'; });
+        });
+
         let heroIndex = heroRotationVariants.findIndex(
-          (v) => hero && v.headline === hero.textContent,
+          (v) => v.headline === initialHeadline
         );
         if (heroIndex === -1)
           heroIndex = Math.floor(Math.random() * heroRotationVariants.length);
 
         function rotateHero() {
-          const els = [hero, subtitle, cta, statPill];
-          els.forEach((el) => {
-            if (el) {
-              el.style.transition = "opacity 0.5s";
-              el.style.opacity = "0";
-            }
+          [subtitle, cta, statPill].forEach(el => {
+            if (el) { el.style.transition = 'opacity 0.5s'; el.style.opacity = '0'; }
           });
           setTimeout(() => {
             heroIndex = (heroIndex + 1) % heroRotationVariants.length;
             const v = heroRotationVariants[heroIndex];
-            if (hero) hero.textContent = v.headline;
             if (subtitle) subtitle.textContent = v.subtitle;
             if (cta) cta.textContent = v.cta;
             if (statPill) statPill.textContent = v.stat;
-            els.forEach((el) => {
-              if (el) el.style.opacity = "1";
+            twErase(function() {
+              twType(v.headline, function() {
+                [subtitle, cta, statPill].forEach(el => {
+                  if (el) { el.style.transition = 'opacity 0.7s ease'; el.style.opacity = '1'; }
+                });
+              });
             });
           }, 500);
         }
-        setInterval(rotateHero, 8000);
+        setInterval(rotateHero, 10000);
 
         // --- Section scroll tracking ---
         const serviceObserver = new IntersectionObserver(
