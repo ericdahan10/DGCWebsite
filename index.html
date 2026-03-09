@@ -2093,6 +2093,64 @@
         opacity: 1;
       }
 
+      /* ===== AI in Action — Glowing Card Effect (21st.dev) ===== */
+      @keyframes glow-blue {
+        0%, 100% {
+          box-shadow: 0 0 18px rgba(45,90,143,0.22), 0 0 50px rgba(45,90,143,0.10);
+          border-color: rgba(45,90,143,0.35);
+        }
+        50% {
+          box-shadow: 0 0 34px rgba(45,90,143,0.48), 0 0 80px rgba(45,90,143,0.22);
+          border-color: rgba(45,90,143,0.65);
+        }
+      }
+      @keyframes glow-purple {
+        0%, 100% {
+          box-shadow: 0 0 18px rgba(108,63,160,0.22), 0 0 50px rgba(108,63,160,0.10);
+          border-color: rgba(108,63,160,0.35);
+        }
+        50% {
+          box-shadow: 0 0 34px rgba(108,63,160,0.48), 0 0 80px rgba(108,63,160,0.22);
+          border-color: rgba(108,63,160,0.65);
+        }
+      }
+      @keyframes glow-green {
+        0%, 100% {
+          box-shadow: 0 0 18px rgba(26,138,92,0.22), 0 0 50px rgba(26,138,92,0.10);
+          border-color: rgba(26,138,92,0.35);
+        }
+        50% {
+          box-shadow: 0 0 34px rgba(26,138,92,0.48), 0 0 80px rgba(26,138,92,0.22);
+          border-color: rgba(26,138,92,0.65);
+        }
+      }
+      @keyframes glow-orange {
+        0%, 100% {
+          box-shadow: 0 0 18px rgba(199,106,26,0.22), 0 0 50px rgba(199,106,26,0.10);
+          border-color: rgba(199,106,26,0.35);
+        }
+        50% {
+          box-shadow: 0 0 34px rgba(199,106,26,0.48), 0 0 80px rgba(199,106,26,0.22);
+          border-color: rgba(199,106,26,0.65);
+        }
+      }
+      @keyframes glow-teal {
+        0%, 100% {
+          box-shadow: 0 0 18px rgba(14,138,126,0.22), 0 0 50px rgba(14,138,126,0.10);
+          border-color: rgba(14,138,126,0.35);
+        }
+        50% {
+          box-shadow: 0 0 34px rgba(14,138,126,0.48), 0 0 80px rgba(14,138,126,0.22);
+          border-color: rgba(14,138,126,0.65);
+        }
+      }
+
+      .showcase-card.tint-blue.visible   { animation: glow-blue   3.5s ease-in-out infinite; border-color: rgba(45,90,143,0.35); }
+      .showcase-card.tint-purple.visible { animation: glow-purple 3.5s ease-in-out infinite; border-color: rgba(108,63,160,0.35); }
+      .showcase-card.tint-green.visible  { animation: glow-green  3.5s ease-in-out infinite; border-color: rgba(26,138,92,0.35); }
+      .showcase-card.tint-orange.visible { animation: glow-orange 3.5s ease-in-out infinite; border-color: rgba(199,106,26,0.35); }
+      .showcase-card.tint-teal.visible   { animation: glow-teal   3.5s ease-in-out infinite; border-color: rgba(14,138,126,0.35); }
+
       /* Left column */
       .showcase-left {
         background: #ffffff;
