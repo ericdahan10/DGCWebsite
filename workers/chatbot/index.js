@@ -6,6 +6,10 @@ const ALLOWED_ORIGINS = new Set([
   "https://www.dahangroup.io",
   "https://vault.dahangroup.io",
   "https://dgcvault.onrender.com",
+  // TRACE — internal tool
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "https://trace.dahangroup.io",
 ]);
 
 function assertRequiredEnv(env, keys) {
@@ -982,6 +986,53 @@ export default {
             "Content-Type": "application/json",
             ...corsHeaders(request),
           },
+        });
+      }
+    }
+
+    // ── /client-create — authenticated, inserts a new client row ────────────────
+    if (url.pathname === "/client-create") {
+      const key = request.headers.get("X-API-Key");
+      if (!key || key !== env.SITE_API_KEY) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      }
+      try {
+        const body = await request.json();
+        const { name, slug, system_prompt, widget_config } = body;
+        if (!name || !slug) {
+          return new Response(JSON.stringify({ error: "name and slug are required" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+          });
+        }
+        const writeKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_KEY;
+        const sbRes = await fetch(`${env.SUPABASE_URL}/rest/v1/clients`, {
+          method: "POST",
+          headers: {
+            apikey: writeKey,
+            Authorization: `Bearer ${writeKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            name,
+            slug,
+            system_prompt: system_prompt || "",
+            widget_config: widget_config || {},
+          }),
+        });
+        const rows = sbRes.ok ? await sbRes.json() : [];
+        const row = Array.isArray(rows) ? rows[0] : rows;
+        return new Response(JSON.stringify({ success: true, client: row }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders(request) },
         });
       }
     }
@@ -3036,9 +3087,21 @@ export default {
       const body = await request.json();
       const messages = body.messages || [];
       const visitorId = body.visitor_id || null;
-      // Use client_id from the widget request so each client gets their own
-      // system prompt, knowledge base, and conversation history.
-      const clientId = body.client_id || env.CLIENT_ID;
+      // Resolve client by slug or UUID so widgets passing a slug (e.g. "beflex")
+      // get the right system prompt and knowledge base.
+      let clientId = body.client_id || env.CLIENT_ID;
+      if (clientId && env.SUPABASE_URL && env.SUPABASE_KEY) {
+        try {
+          const slugRes = await fetch(
+            `${env.SUPABASE_URL}/rest/v1/clients?slug=eq.${encodeURIComponent(clientId)}&select=id`,
+            { headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` } },
+          );
+          if (slugRes.ok) {
+            const slugRows = await slugRes.json();
+            if (Array.isArray(slugRows) && slugRows.length) clientId = slugRows[0].id;
+          }
+        } catch (_) { /* non-fatal — use clientId as-is */ }
+      }
 
       // ── Visitor Memory: load prior conversation history ───────────────────
       // Fetches previous sessions from Supabase so ECHO remembers returning visitors.
