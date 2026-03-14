@@ -31,13 +31,12 @@ function corsHeaders(request) {
 }
 
 async function qualifyLead(leadData, apiKey) {
-  const prompt = `You are a lead qualification AI for Dahan Group Consulting (DGC), an AI consulting firm.
+  const prompt = `You are a lead qualification AI.
 
 Analyze this lead and provide:
 1. A score from 0-100
 2. A category: HOT (80-100), WARM (50-79), or COLD (0-49)
 3. Key interests detected
-4. A personalized email to send them
 
 LEAD INFO:
 Name: ${leadData.name || "Unknown"}
@@ -54,18 +53,8 @@ SCORING CRITERIA:
 - Gives name and email = +10
 - Vague or general inquiry = +5
 
-EMAIL RULES:
-- Write from "the DGC team" — never use specific names
-- Keep it to 3-5 sentences max
-- Reference what they specifically asked about
-- For HOT leads: propose a call this week
-- For WARM leads: share a relevant insight, soft CTA to book a call
-- For COLD leads: short, friendly, leave the door open
-- Professional but warm tone, no jargon
-- Subject line should be personalized, not generic
-
 Respond in this exact JSON format only, no other text:
-{"score":85,"category":"HOT","interests":["workflow automation","sales team"],"subject":"Quick thought on automating your sales workflows","email":"Hi Sarah,\\n\\nThanks for reaching out..."}`;
+{"score":85,"category":"HOT","interests":["workflow automation","sales team"]}`;
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -94,6 +83,9 @@ Respond in this exact JSON format only, no other text:
 
 async function notifyOwner(leadData, qualification, env) {
   try {
+    const clientLabel = leadData.client_id && leadData.client_id !== env.CLIENT_ID
+      ? `Client ${leadData.client_id.slice(0, 8)}`
+      : "DGC";
     await fetch(env.FORMSPREE_URL, {
       method: "POST",
       headers: {
@@ -102,7 +94,7 @@ async function notifyOwner(leadData, qualification, env) {
       },
       body: JSON.stringify({
         _replyto: env.ADMIN_EMAIL,
-        _subject: `[DGC Lead - ${qualification.category}] ${leadData.name || "New Lead"}`,
+        _subject: `[${clientLabel} Lead - ${qualification.category}] ${leadData.name || "New Lead"}`,
         "Lead Name": leadData.name || "Unknown",
         "Lead Email": leadData.email,
         "Lead Phone": leadData.phone || "N/A",
@@ -110,7 +102,6 @@ async function notifyOwner(leadData, qualification, env) {
         Interests: qualification.interests.join(", "),
         Source: leadData.source || "Website",
         Conversation: leadData.conversation || leadData.message || "N/A",
-        "AI Email Draft": `Subject: ${qualification.subject}\n\n${qualification.email}`,
       }),
     });
   } catch (e) {
@@ -367,7 +358,11 @@ export default {
       if (!skipOwnerNotification) {
         ctx.waitUntil(notifyOwner(leadData, qualification, env));
       }
-      ctx.waitUntil(sendProspectEmail(leadData, qualification, env));
+      // Only send prospect email for DGC — other clients have their own email flows
+      const isDGCLead = !leadData.client_id || leadData.client_id === env.CLIENT_ID;
+      if (isDGCLead) {
+        ctx.waitUntil(sendProspectEmail(leadData, qualification, env));
+      }
       if (!skipSupabaseSave) {
         ctx.waitUntil(saveLeadToSupabase(leadData, qualification, env));
       }
