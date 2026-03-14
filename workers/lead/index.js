@@ -191,7 +191,11 @@ function buildHtmlEmail(body) {
 // Requires SUPABASE_URL, SUPABASE_KEY, CLIENT_ID env vars on this Worker.
 async function saveLeadToSupabase(leadData, qualification, env) {
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY || !env.CLIENT_ID) {
-    const missing = { hasUrl: !!env.SUPABASE_URL, hasKey: !!env.SUPABASE_KEY, hasClientId: !!env.CLIENT_ID };
+    const missing = {
+      hasUrl: !!env.SUPABASE_URL,
+      hasKey: !!env.SUPABASE_KEY,
+      hasClientId: !!env.CLIENT_ID,
+    };
     console.error("saveLeadToSupabase: missing env vars", missing);
     return { ok: false, error: "missing env vars", missing };
   }
@@ -205,16 +209,16 @@ async function saveLeadToSupabase(leadData, qualification, env) {
         Prefer: "return=minimal",
       },
       body: JSON.stringify({
-        client_id:    env.CLIENT_ID,
-        visitor_name: leadData.name  || "",
+        client_id: leadData.client_id || env.CLIENT_ID,
+        visitor_name: leadData.name || "",
         visitor_email: leadData.email || "",
         visitor_phone: leadData.phone || "",
-        source:       leadData.source || "chatbot",
-        message:      leadData.conversation || leadData.message || "",
-        score:        qualification?.score     ?? null,
-        score_label:  qualification?.category  ?? null,
-        interests:    (qualification?.interests || []).join(", "),
-        status:       "new",
+        source: leadData.source || "chatbot",
+        message: leadData.conversation || leadData.message || "",
+        score: qualification?.score ?? null,
+        score_label: qualification?.category ?? null,
+        interests: (qualification?.interests || []).join(", "),
+        status: "new",
       }),
     });
     if (!res.ok) {
@@ -276,7 +280,11 @@ async function sendProspectEmail(leadData, qualification, env) {
 
     const ok = response.ok && (!parsed || parsed.success !== false);
     if (!ok) {
-      console.error("Google Apps Script email failed:", response.status, responseText || "(empty body)");
+      console.error(
+        "Google Apps Script email failed:",
+        response.status,
+        responseText || "(empty body)",
+      );
       return { ok: false, status: response.status, body: responseText || null };
     }
 
@@ -312,7 +320,10 @@ export default {
     if (!apiKey || apiKey !== env.SITE_API_KEY) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders(request),
+        },
       });
     }
 
