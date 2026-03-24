@@ -32,10 +32,16 @@
     <meta name="twitter:image" content="https://dahangroup.io/og-image.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Preload primary font to avoid FOUT on hero -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500&family=Cormorant+Garamond:wght@400&family=Questrial&display=swap" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Cormorant+Garamond:wght@300;400;500&family=Questrial&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500&family=Cormorant+Garamond:wght@400&family=Questrial&display=swap"
       rel="stylesheet"
+      media="print" onload="this.media='all'"
     />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500&family=Cormorant+Garamond:wght@400&family=Questrial&display=swap" rel="stylesheet" />
+    </noscript>
     <style>
       :root {
         --primary: #1a1a1a;
@@ -6704,6 +6710,7 @@
     <script
       src="https://vault.dahangroup.io/widget.js?v=20260304a"
       data-client-id="dgc"
+      defer
     ></script>
 
     <!-- JavaScript for Form Handling -->
